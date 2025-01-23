@@ -6,7 +6,7 @@
   </a>
 </p>
 
-![Profile views counter](https://komarev.com/ghpvc/?username=xplshn&color=ff69b4)
+Profile views since I stuck this counter here: ![Profile views counter](https://komarev.com/ghpvc/?username=xplshn&color=ff69b4)
 
 <!--
 **xplshn/xplshn** is a ✨ _special_ ✨ repository because its `README.md` (this file) appears on your GitHub profile.
