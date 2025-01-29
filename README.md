@@ -7,23 +7,3 @@
 </p>
 
 Profile views since I stuck this counter here: ![Profile views counter](https://komarev.com/ghpvc/?username=xplshn&color=ff69b4)
-
-<form action="https://www.paypal.com/donate" method="post" target="_top">
-<input type="hidden" name="hosted_button_id" value="77G7ZFXVZ44EE" />
-<input type="image" src="https://pics.paypal.com/00/s/MmY2M2Q0YmUtOGYyYy00ZGJkLTk5MzMtMjgzZTJmZjY1MDhl/file.PNG" border="0" name="submit" title="PayPal - The safer, easier way to pay online!" alt="Donate with PayPal button" />
-<img alt="" border="0" src="https://www.paypal.com/en_AR/i/scr/pixel.gif" width="1" height="1" />
-</form>
-
-<!--
-**xplshn/xplshn** is a ✨ _special_ ✨ repository because its `README.md` (this file) appears on your GitHub profile.
-
-Here are some ideas to get you started:
-
-- 🔭 I’m currently working on ...
-- 🌱 I’m currently learning ...
-- 👯 I’m looking to collaborate on ...
-- 🤔 I’m looking for help with ...
-- 💬 Ask me about ...
-- 📫 How to reach me: ...
-- ⚡ Fun fact: ...
--->
