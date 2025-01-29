@@ -6,7 +6,7 @@
   </a>
 </p>
 
-Profile views since I stuck this counter here: ![Profile views counter](https://komarev.com/ghpvc/?username=xplshn&color=ff69b4
+Profile views since I stuck this counter here: ![Profile views counter](https://komarev.com/ghpvc/?username=xplshn&color=ff69b4)
 
 <p align="center">
   <a href="https://www.paypal.com/donate/?hosted_button_id=77G7ZFXVZ44EE">
