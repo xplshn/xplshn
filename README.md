@@ -14,4 +14,4 @@ Profile views since I stuck this counter here: ![Profile views counter](https://
  </a>
 </p>
 
-##### In defense of public domain, and against intellectual preperty! https://🅮.neocities.org
+##### In defense of public domain, and against intellectual property! https://🅮.neocities.org
