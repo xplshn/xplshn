@@ -13,3 +13,5 @@ Profile views since I stuck this counter here: ![Profile views counter](https://
     <img width="200" src="https://raw.githubusercontent.com/andreostrovsky/donate-with-paypal/refs/heads/master/dark.svg" alt="Donate with Paypal!" />
  </a>
 </p>
+
+##### In defense of public domain, and against intellectual preperty! https://🅮.neocities.org
