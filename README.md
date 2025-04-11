@@ -10,7 +10,7 @@ Profile views since I stuck this counter here: ![Profile views counter](https://
 
 <p align="center">
   <a href="https://www.paypal.com/donate/?hosted_button_id=77G7ZFXVZ44EE">
-    <img width="200" src="https://raw.githubusercontent.com/andreostrovsky/donate-with-paypal/refs/heads/master/dark.svg" alt="Donate with Paypal!" />
+    <img width="200" src="https://raw.githubusercontent.com/andreostrovsky/donate-with-paypal/refs/heads/master/dark.svg" alt="Send money to support broke Argentinian?" />
  </a>
 </p>
 
