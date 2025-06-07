@@ -58,17 +58,17 @@ process_markdown_files() {
 }
 
 # Main script execution
-check_directory
-rm -rf -- ./content/docs/*
-rm -rf -- ./static/assets/*
-process_markdown_files "../docs" "./content/docs" "Documentation"
-find ../assets/ -type f ! -name '*AppRun*' ! -name '*LAUNCH*' -exec cp {} ./static/assets/ \;
-{
-    echo "---"
-    echo "title: 'Home'"
-    echo "---"
-} >./content/_index.md
-sed 's|src="files/|src="assets/|g' ../README.md >>./content/_index.md
+#check_directory
+#rm -rf -- ./content/docs/*
+#rm -rf -- ./static/assets/*
+#process_markdown_files "../docs" "./content/docs" "Documentation"
+#find ../assets/ -type f ! -name '*AppRun*' ! -name '*LAUNCH*' -exec cp {} ./static/assets/ \;
+#{
+#    echo "---"
+#    echo "title: 'Home'"
+#    echo "---"
+#} >./content/_index.md
+#sed 's|src="files/|src="assets/|g' ../README.md >>./content/_index.md
 
 # Build with Hugo
 hugo
