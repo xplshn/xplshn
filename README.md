@@ -8,7 +8,7 @@
 
 <p align="center">
   <i>
-    moderation in the pursuit of justice is no virtue
+    And the worms ate into his brain.
   </i>
 </p>
 
