@@ -1,6 +1,12 @@
 <p align="center">
+  <img width="600" alt="Western SVG" src="https://raw.githubusercontent.com/xplshn/xplshn/master/assets/western.svg">
+</p>
+
+<!--
+<p align="center">
   <img width="600" alt="Pink Floyd's The Wall's album cover. In svg format" src="https://upload.wikimedia.org/wikipedia/commons/b/b1/The_Wall_Cover.svg">
 </p>
+-->
 
 <br>
 <br>
@@ -8,12 +14,16 @@
 
 <p align="center">
   <i>
-    And the worms ate into his brain.
+    Sane sicut lux se ipsam et tenebras manifestat, sic veritas norma sui et falsi est
   </i>
 </p>
 
 <!--
-> Sane sicut lux se ipsam et tenebras manifestat, sic veritas norma sui et falsi est
+<p align="center">
+  <i>
+    And the worms ate into his brain.
+  </i>
+</p>
 -->
 
 <!--
