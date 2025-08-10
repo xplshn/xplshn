@@ -13,6 +13,10 @@
 </p>
 
 <!--
+> Sane sicut lux se ipsam et tenebras manifestat, sic veritas norma sui et falsi est
+-->
+
+<!--
 > “Knowledge does not begin in the I, and it does not begin in the object; it begins in the interactions….then there is a reciprocal and simultaneous construction of the subject on the one hand and the object on the other.” -Jean Piaget
 -->
 
