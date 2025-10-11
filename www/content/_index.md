@@ -6,7 +6,7 @@ title: "Anto's personal website"
 - ¡Hola!
 - Saluton!
 
-I'm anto AKA `@xplshn`, I'm the maintainer of a few OSS projects, each with varying degress of success. <img src="/assets/lasFuerzasDelCielo.svg" width="10rem" alt="Las Fuerzas del Cielo (SVG)">
+I'm anto AKA `@xplshn`, I'm the maintainer of a few OSS projects, each with varying degress of success. <img src="/assets/lasFuerzasDelCielo.svg" width="11.2896px" alt="This image was produced by anto@xplshn.com.ar | github.com/xplshn. This is just a recreation of the symbolism used by Las Fuerzas del Cielo (Argentinian (paleo)Libertarian/AnarchoCapitalist Movement) [https://xplshn.com.ar/assets/lasFuerzasDelCielo.svg]">
 
 These are some of my projects:
 
