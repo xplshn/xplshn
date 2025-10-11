@@ -70,5 +70,7 @@ find ../assets/ -type f -exec cp {} ./static/assets/ \;
 #} >./content/_index.md
 #sed 's|src="files/|src="assets/|g' ../README.md >>./content/_index.md
 
+cp ../LICENSE* ./pub
+
 # Build with Hugo
 hugo
