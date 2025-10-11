@@ -8,9 +8,10 @@
 </p>
 -->
 
-<br>
-<br>
-<br>
+<p align="center">
+  <br>
+  <img src="/assets/lasFuerzasDelCielo.svg" width="15rem" alt="This image was produced by anto@xplshn.com.ar | github.com/xplshn. This is just a recreation of the symbolism used by Las Fuerzas del Cielo (Argentinian (paleo)Libertarian/AnarchoCapitalist Movement) [https://xplshn.com.ar/assets/lasFuerzasDelCielo.svg]">
+</p>
 
 <p align="center">
   <i>
