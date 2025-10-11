@@ -62,7 +62,7 @@ process_markdown_files() {
 #rm -rf -- ./content/docs/*
 #rm -rf -- ./static/assets/*
 #process_markdown_files "../docs" "./content/docs" "Documentation"
-#find ../assets/ -type f ! -name '*AppRun*' ! -name '*LAUNCH*' -exec cp {} ./static/assets/ \;
+find ../assets/ -type f -exec cp {} ./static/assets/ \;
 #{
 #    echo "---"
 #    echo "title: 'Home'"
