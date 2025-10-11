@@ -6,7 +6,7 @@ title: "Anto's personal website"
 - ¡Hola!
 - Saluton!
 
-I'm anto AKA `@xplshn`, I'm the maintainer of a few OSS projects, each with varying degress of success. <img src="assets/lasFuerzasDelCielo.svg" width="1em" height="1em" alt="Las Fuerzas del Cielo (SVG)" style="vertical-align: -0.125em;">
+I'm anto AKA `@xplshn`, I'm the maintainer of a few OSS projects, each with varying degress of success. <img src="../../assets/lasFuerzasDelCielo.svg" width="10rem" alt="Las Fuerzas del Cielo (SVG)">
 
 These are some of my projects:
 
