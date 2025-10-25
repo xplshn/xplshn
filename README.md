@@ -1,5 +1,5 @@
 <p align="center">
-  <img width="600" alt="Western SVG" src="https://raw.githubusercontent.com/xplshn/xplshn/master/assets/western.svg">
+  <img width="600" alt="Western SVG" src="assets/western.svg">
 </p>
 
 <!--
