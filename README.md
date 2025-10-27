@@ -1,5 +1,5 @@
 <p align="center">
-  <img width="600" alt="Western SVG" src="assets/western.svg">
+  <img width="600" alt="Western SVG" src="https://xplshn.com.ar/assets/western.svg">
 </p>
 
 <!--
