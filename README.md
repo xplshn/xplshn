@@ -18,8 +18,8 @@
     <!--
     Sane sicut lux se ipsam et tenebras manifestat, sic veritas norma sui et falsi est 
     -->
-    🇦🇷🤝🇵🇱
   </i>
+  🇭🇺🤝<b>🇦🇷</b>🤝🇵🇱
 </p>
 
 <!--
