@@ -76,7 +76,7 @@ footnotereturnlinkcontents = "↩"
     tag = "tags"
 
 [params]
-    subtitle = "if you were there, beware"
+    subtitle = "one of these days"
     brandIconFile = "assets/images/icon.svg"
     abbrDateFmt = "Jan 2"
     dateFmt = "01.02.2006 15:04"
