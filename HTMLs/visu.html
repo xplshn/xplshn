@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VISU</title>
+<style>
+    :root {
+        --bg: #050505;
+        --fg: #00FF99;
+        --accent: #FF0055;
+        --font: 'Courier New', monospace;
+    }
+
+    body {
+        margin: 0;
+        overflow: hidden;
+        background-color: var(--bg);
+        color: var(--fg);
+        font-family: var(--font);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        user-select: none;
+    }
+
+    canvas {
+        display: block;
+        box-shadow: 0 0 20px rgba(0, 255, 153, 0.1);
+    }
+
+    #overlay {
+        position: absolute;
+        top: 0; left: 0; width: 100%; height: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        background: rgba(5, 5, 5, 0.95);
+        z-index: 10;
+        transition: opacity 0.3s;
+    }
+
+    #overlay.hidden {
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    h1 {
+        margin-bottom: 40px;
+        text-shadow: 0 0 10px var(--fg);
+    }
+
+    .menu {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        min-width: 300px;
+    }
+
+    button, .input-zone {
+        background: transparent;
+        color: var(--fg);
+        border: 2px solid var(--fg);
+        padding: 15px 20px;
+        font-family: var(--font);
+        font-size: 16px;
+        cursor: pointer;
+        text-transform: uppercase;
+        transition: all 0.2s;
+        text-align: center;
+    }
+
+    button:hover, .input-zone:hover {
+        background: var(--fg);
+        color: var(--bg);
+        box-shadow: 0 0 15px var(--fg);
+    }
+
+    .input-zone {
+        border-style: dashed;
+        display: block;
+    }
+
+    .status {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        background: rgba(0, 0, 0, 0.5);
+        padding: 5px 10px;
+        pointer-events: none;
+        font-size: 14px;
+        z-index: 5;
+    }
+
+    .controls {
+        position: absolute;
+        bottom: 10px;
+        right: 10px;
+        font-size: 12px;
+        opacity: 0.7;
+        text-align: right;
+    }
+
+    input[type="file"] {
+        display: none;
+    }
+</style>
+</head>
+<body>
+
+<div id="overlay">
+    <h1>VISU</h1>
+    <div class="menu">
+        <button id="btn-capture">[ CAPTURE SYSTEM / TAB ]</button>
+        <button id="btn-mic">[ MICROPHONE ]</button>
+        <div class="input-zone" id="dropZone">
+            [ DRAG AUDIO FILE HERE ]<br>
+            <span style="font-size: 0.8em; opacity: 0.8;">OR CLICK TO BROWSE</span>
+        </div>
+    </div>
+    <input type="file" id="fileInput" accept="audio/*">
+</div>
+
+<div class="status" id="statusLine">Mode 0: Spectrum</div>
+<div class="controls">TAB: Next Mode | Q: Stop | R: Reset</div>
+
+<canvas id="cvs"></canvas>
+
+<script>
+/**
+ * config.js - Runtime Configuration
+ */
+const CONFIG = {
+    // Window Configuration (Canvas resolution)
+    WIN_W: 1200,
+    WIN_H: 800,
+
+    // Audio Processing
+    FFT_SIZE: 2048,      // Power of 2
+    SMOOTHING: 0.3,      // 0.0-1.0
+    AMP_SCALE: 1.5,      // Adjusted for Web Audio normalized values (0.0-1.0) vs C int16
+
+    // Visual Theme
+    COLOR_BG: [5, 5, 5],
+    COLOR_FG: [0, 255, 153],
+    
+    // Limits
+    MAX_FPS: 60
+};
+
+/**
+ * visu.js - Application Core
+ */
+const APP = {
+    ctx: null,
+    canvas: null,
+    audioCtx: null,
+    analyser: null,
+    source: null,
+    dataArray: null, // Uint8Array for ByteFrequency
+    timeArray: null, // Float32Array for TimeDomain
+    rafId: null,
+    mode: 0,
+    frameCount: 0,
+    running: false,
+    width: CONFIG.WIN_W,
+    height: CONFIG.WIN_H,
+    
+    // Pre-allocated for performance
+    imageData: null,
+    buf32: null, 
+};
+
+const MODES = [
+    { name: "Spectrum", fn: draw_spectrum },
+    { name: "Oscilloscope", fn: draw_oscilloscope },
+    { name: "Radial Burst", fn: draw_radial },
+    { name: "Circular Spectrum", fn: draw_circular_spectrum },
+    { name: "Psychedelic Ripple", fn: draw_psychedelic_ripple, pixel: true },
+    { name: "Matrix Rain", fn: draw_matrix_rain },
+    { name: "Spiral Galaxy", fn: draw_spiral },
+    { name: "Tunnel Vision", fn: draw_tunnel, pixel: true },
+    { name: "Frequency Mandala", fn: draw_mandala },
+    { name: "Strange Attractor", fn: draw_strange },
+    { name: "Plasma Field", fn: draw_plasma, pixel: true }
+];
+
+// --- Math Helpers ---
+const PI = Math.PI;
+const TWO_PI = Math.PI * 2;
+
+function hsv_to_rgb(h, s, v) {
+    let r, g, b;
+    let i = Math.floor(h / 60);
+    let f = h / 60 - i;
+    let p = v * (1 - s);
+    let q = v * (1 - f * s);
+    let t = v * (1 - (1 - f) * s);
+    
+    switch (i % 6) {
+        case 0: r = v; g = t; b = p; break;
+        case 1: r = q; g = v; b = p; break;
+        case 2: r = p; g = v; b = t; break;
+        case 3: r = p; g = q; b = v; break;
+        case 4: r = t; g = p; b = v; break;
+        case 5: r = v; g = p; b = q; break;
+    }
+    return {
+        r: Math.floor(r * 255),
+        g: Math.floor(g * 255),
+        b: Math.floor(b * 255)
+    };
+}
+
+// --- Pixel Manipulation Helpers ---
+// We use a Uint32 buffer view for speed (setting 1 integer vs 4 bytes)
+function setPixel(x, y, r, g, b, a = 255) {
+    if (x < 0 || x >= APP.width || y < 0 || y >= APP.height) return;
+    // Little-endian: ABGR
+    APP.buf32[y * APP.width + x] = 
+        (a << 24) | (b << 16) | (g << 8) | r;
+}
+
+// --- Mode 0: Spectrum ---
+function draw_spectrum() {
+    const n_bars = 100;
+    const width = APP.width / n_bars;
+    const bufferLength = APP.analyser.frequencyBinCount;
+    
+    for (let i = 0; i < n_bars; i++) {
+        // Logarithmic scale mapping
+        let idx = Math.floor(Math.pow(i / n_bars, 2.0) * (bufferLength));
+        if (idx < 0) idx = 0;
+        if (idx >= bufferLength) idx = bufferLength - 1;
+
+        let val = APP.dataArray[idx] * CONFIG.AMP_SCALE; 
+        if (val > APP.height) val = APP.height;
+        if (val < 0) val = 0;
+
+        const h = val;
+        
+        let r = h / 2;
+        let g = 255 - h / 4;
+        let b = 150;
+        
+        APP.ctx.fillStyle = `rgba(${r},${g},${b},1)`;
+        APP.ctx.fillRect(i * width, APP.height - h, width - 1, h);
+    }
+}
+
+// --- Mode 1: Oscilloscope ---
+function draw_oscilloscope() {
+    APP.analyser.getFloatTimeDomainData(APP.timeArray);
+    
+    APP.ctx.lineWidth = 2;
+    APP.ctx.strokeStyle = `rgb(0, 255, 100)`;
+    APP.ctx.beginPath();
+
+    const sliceWidth = APP.width / APP.timeArray.length;
+    let x = 0;
+
+    for (let i = 0; i < APP.timeArray.length; i++) {
+        const v = APP.timeArray[i] * 0.5 + 0.5; // Normalized to 0-1
+        // Scale to Amplitude
+        const y = v * APP.height;
+
+        if (i === 0) APP.ctx.moveTo(x, y);
+        else APP.ctx.lineTo(x, y);
+
+        x += sliceWidth;
+    }
+    APP.ctx.stroke();
+}
+
+// --- Mode 2: Radial Burst ---
+function draw_radial() {
+    const cx = APP.width / 2;
+    const cy = APP.height / 2;
+    const radius = 100;
+    const n_points = 120;
+    const bufferLength = APP.analyser.frequencyBinCount;
+
+    for (let i = 0; i < n_points; i++) {
+        let idx = i * 2;
+        if (idx >= bufferLength) idx = bufferLength - 1;
+        
+        let amp = APP.dataArray[idx] * CONFIG.AMP_SCALE * 0.8; 
+        if (amp > 300) amp = 300;
+
+        let angle = (TWO_PI * i) / n_points;
+        let x_start = cx + Math.cos(angle) * radius;
+        let y_start = cy + Math.sin(angle) * radius;
+        let x_end = cx + Math.cos(angle) * (radius + amp);
+        let y_end = cy + Math.sin(angle) * (radius + amp);
+
+        APP.ctx.strokeStyle = `rgb(255, ${50 + amp}, 50)`;
+        APP.ctx.lineWidth = 2;
+        APP.ctx.beginPath();
+        APP.ctx.moveTo(x_start, y_start);
+        APP.ctx.lineTo(x_end, y_end);
+        APP.ctx.stroke();
+    }
+}
+
+// --- Mode 3: Circular Spectrum ---
+function draw_circular_spectrum() {
+    const cx = APP.width / 2;
+    const cy = APP.height / 2;
+    const n_bars = 180;
+    const bufferLength = APP.analyser.frequencyBinCount;
+
+    for (let i = 0; i < n_bars; i++) {
+        let idx = Math.floor((i * bufferLength) / n_bars);
+        let amp = APP.dataArray[idx] * 0.8;
+        if (amp > 250) amp = 250;
+
+        let angle = (TWO_PI * i) / n_bars;
+        let radius = 150 + amp;
+
+        let x = cx + Math.cos(angle) * radius;
+        let y = cy + Math.sin(angle) * radius;
+
+        let col = hsv_to_rgb((i * 360.0) / n_bars, 0.9, 1.0);
+        
+        APP.ctx.fillStyle = `rgb(${col.r}, ${col.g}, ${col.b})`;
+        APP.ctx.fillRect(x, y, 3, 3);
+    }
+}
+
+// --- Mode 4: Psychedelic Ripple ---
+function draw_psychedelic_ripple() {
+    const time = APP.frameCount * 0.02;
+    const cx = APP.width / 2;
+    const cy = APP.height / 2;
+    const bufferLength = APP.analyser.frequencyBinCount;
+    
+    // Lock buffer for pixel access
+    const buf = APP.buf32;
+    const w = APP.width;
+    const h = APP.height;
+
+    // Iterate with step 4 for performance (matching C code logic)
+    // Note: To use setPixel efficiently in JS, we fill 4x4 blocks
+    // or just calculate for every 4th pixel.
+    
+    for (let y = 0; y < h; y += 4) {
+        for (let x = 0; x < w; x += 4) {
+            let dx = (x - cx) / 200.0;
+            let dy = (y - cy) / 200.0;
+            let dist = Math.sqrt(dx * dx + dy * dy);
+
+            let freq_idx = Math.floor(dist * 20) % bufferLength;
+            let intensity = APP.dataArray[freq_idx] / 100.0;
+
+            let wave_val = Math.sin(dist * 5.0 - time + intensity * 3.0);
+            
+            let hue = (dist * 100.0 + time * 50.0) % 360.0;
+            let col = hsv_to_rgb(hue, 0.8, (wave_val + 1.0) / 2.0);
+
+            // Fill 4x4 block
+            const pixel = (255 << 24) | (col.b << 16) | (col.g << 8) | col.r;
+            for(let by=0; by<4; by++) {
+                if (y+by >= h) break;
+                let rowOffset = (y+by) * w;
+                for(let bx=0; bx<4; bx++) {
+                    if (x+bx >= w) break;
+                    buf[rowOffset + (x+bx)] = pixel;
+                }
+            }
+        }
+    }
+}
+
+// --- Mode 5: Matrix Rain ---
+function draw_matrix_rain() {
+    const cols = 60;
+    const col_width = APP.width / cols;
+    const bufferLength = APP.analyser.frequencyBinCount;
+
+    for (let i = 0; i < cols; i++) {
+        let idx = Math.floor((i * bufferLength) / cols);
+        let intensity = APP.dataArray[idx] / 150.0;
+        if (intensity > 1.0) intensity = 1.0;
+
+        let drops = Math.floor(intensity * 40);
+
+        for (let j = 0; j < drops; j++) {
+            let y = Math.floor(APP.frameCount * 3 + j * 20 + i * 13) % APP.height;
+            let alpha = 1.0 - (j / drops);
+
+            APP.ctx.fillStyle = `rgba(0, 255, 100, ${alpha})`;
+            APP.ctx.fillRect(i * col_width, y, col_width - 1, 2);
+        }
+    }
+}
+
+// --- Mode 6: Spiral Galaxy ---
+function draw_spiral() {
+    const cx = APP.width / 2;
+    const cy = APP.height / 2;
+    const time = APP.frameCount * 0.01;
+    const bufferLength = APP.analyser.frequencyBinCount;
+
+    for (let i = 0; i < 500; i++) {
+        let idx = i % bufferLength;
+        let amp = APP.dataArray[idx] * 0.5;
+
+        let t = i * 0.05 + time;
+        let radius = i * 0.8 + amp;
+        let angle = t * 0.3 + radius * 0.02;
+
+        let x = cx + Math.cos(angle) * radius;
+        let y = cy + Math.sin(angle) * radius;
+
+        let col = hsv_to_rgb((t * 20.0) % 360, 0.9, 1.0);
+        APP.ctx.fillStyle = `rgba(${col.r}, ${col.g}, ${col.b}, 0.8)`;
+        APP.ctx.fillRect(x, y, 2, 2);
+    }
+}
+
+// --- Mode 7: Tunnel Vision ---
+function draw_tunnel() {
+    const cx = APP.width / 2;
+    const cy = APP.height / 2;
+    const time = APP.frameCount * 0.05;
+    const bufferLength = APP.analyser.frequencyBinCount;
+    const w = APP.width;
+    const h = APP.height;
+    const buf = APP.buf32;
+
+    for (let y = 0; y < h; y += 3) {
+        for (let x = 0; x < w; x += 3) {
+            let dx = x - cx;
+            let dy = y - cy;
+            let angle = Math.atan2(dy, dx);
+            let dist = Math.sqrt(dx*dx + dy*dy);
+
+            if (dist < 1.0) dist = 1.0;
+
+            let u = time + 100.0 / dist;
+            let freq_idx = Math.floor(angle * 10.0 + u * 5.0) % bufferLength;
+            if (freq_idx < 0) freq_idx += bufferLength;
+
+            let intensity = APP.dataArray[freq_idx] / 200.0;
+            let brightness = (u + intensity) % 1.0;
+
+            let hue = (angle * 57.3 + time * 10.0) % 360.0;
+            let col = hsv_to_rgb(hue, 0.7, brightness);
+
+            // Fill 3x3 block
+            const pixel = (255 << 24) | (col.b << 16) | (col.g << 8) | col.r;
+             for(let by=0; by<3; by++) {
+                if (y+by >= h) break;
+                let rowOffset = (y+by) * w;
+                for(let bx=0; bx<3; bx++) {
+                    if (x+bx >= w) break;
+                    buf[rowOffset + (x+bx)] = pixel;
+                }
+            }
+        }
+    }
+}
+
+// --- Mode 8: Frequency Mandala ---
+function draw_mandala() {
+    const cx = APP.width / 2;
+    const cy = APP.height / 2;
+    const arms = 8;
+    const bufferLength = APP.analyser.frequencyBinCount;
+
+    for (let arm = 0; arm < arms; arm++) {
+        let base_angle = (TWO_PI * arm) / arms;
+
+        for (let i = 0; i < 100; i++) {
+            let idx = i * 3;
+            if (idx >= bufferLength) idx = bufferLength - 1;
+
+            let amp = APP.dataArray[idx] * 0.6;
+            let radius = 50 + i * 3 + amp;
+            let angle_offset = Math.sin(i * 0.1) * 0.3;
+
+            let x = cx + Math.cos(base_angle + angle_offset) * radius;
+            let y = cy + Math.sin(base_angle + angle_offset) * radius;
+
+            let col = hsv_to_rgb(i * 3.6 + arm * 45.0, 0.8, 1.0);
+            APP.ctx.fillStyle = `rgb(${col.r}, ${col.g}, ${col.b})`;
+            APP.ctx.fillRect(x, y, 2, 2);
+        }
+    }
+}
+
+// --- Mode 9: Strange Attractor ---
+// Static state for Attractor
+const ATTRACTOR = { x: 0.1, y: 0.1 };
+
+function draw_strange() {
+    let dt = 0.01;
+    let bass = 0, mid = 0;
+    
+    // Low freq avg
+    for (let i = 0; i < 10; i++) bass += APP.dataArray[i];
+    bass /= 1000.0;
+
+    // Mid freq avg
+    for (let i = 20; i < 40; i++) mid += APP.dataArray[i];
+    mid /= 1000.0;
+
+    let a = 1.5 + bass * 2.0;
+    let b = -1.8 + mid * 1.5;
+    let c = 1.6;
+    let d = 0.9;
+
+    let x = ATTRACTOR.x;
+    let y = ATTRACTOR.y;
+
+    for (let i = 0; i < 2000; i++) {
+        let x_new = Math.sin(a * y) + c * Math.cos(a * x);
+        let y_new = Math.sin(b * x) + d * Math.cos(b * y);
+        x = x_new;
+        y = y_new;
+
+        let px = Math.floor((x + 3.0) * APP.width / 6.0);
+        let py = Math.floor((y + 3.0) * APP.height / 6.0);
+        
+        // Coloring
+        let col = hsv_to_rgb((i * 0.36 + APP.frameCount) % 360, 0.9, 1.0);
+        APP.ctx.fillStyle = `rgba(${col.r}, ${col.g}, ${col.b}, 0.6)`;
+        APP.ctx.fillRect(px, py, 1, 1);
+    }
+    
+    ATTRACTOR.x = x;
+    ATTRACTOR.y = y;
+}
+
+// --- Mode 10: Plasma Field ---
+function draw_plasma() {
+    const time = APP.frameCount * 0.03;
+    const bufferLength = APP.analyser.frequencyBinCount;
+    const w = APP.width;
+    const h = APP.height;
+    const buf = APP.buf32;
+
+    for (let y = 0; y < h; y += 2) {
+        for (let x = 0; x < w; x += 2) {
+             let freq_x = Math.floor((x * bufferLength) / w);
+             let freq_y = Math.floor((y * bufferLength) / h);
+             
+             // Safety check on indices
+             if(freq_x >= bufferLength) freq_x = bufferLength -1;
+             if(freq_y >= bufferLength) freq_y = bufferLength -1;
+
+             let audio_mod = (APP.dataArray[freq_x] + APP.dataArray[freq_y]) / 400.0;
+
+             let v = Math.sin(x * 0.01 + time) +
+                     Math.sin(y * 0.01 + time * 1.3) +
+                     Math.sin((x + y) * 0.008 + time * 0.7) +
+                     Math.sin(Math.sqrt(x * x + y * y) * 0.01 + time * 2.0) +
+                     audio_mod * 2.0;
+
+            v = (v + 4.0) / 8.0;
+            
+            let col = hsv_to_rgb(v * 360.0, 0.8, v);
+            
+            // Fill 2x2 block
+            const pixel = (255 << 24) | (col.b << 16) | (col.g << 8) | col.r;
+             for(let by=0; by<2; by++) {
+                if (y+by >= h) break;
+                let rowOffset = (y+by) * w;
+                for(let bx=0; bx<2; bx++) {
+                    if (x+bx >= w) break;
+                    buf[rowOffset + (x+bx)] = pixel;
+                }
+            }
+        }
+    }
+}
+
+// --- Main Loop ---
+function loop() {
+    if (!APP.running) return;
+
+    APP.rafId = requestAnimationFrame(loop);
+    APP.analyser.getByteFrequencyData(APP.dataArray);
+
+    // Clear Screen (Functional style: clear is just filling background)
+    // For Pixel modes, we clear ImageData buffer
+    if (MODES[APP.mode].pixel) {
+        APP.buf32.fill((255 << 24) | (CONFIG.COLOR_BG[2] << 16) | (CONFIG.COLOR_BG[1] << 8) | CONFIG.COLOR_BG[0]);
+    } else {
+        APP.ctx.fillStyle = `rgb(${CONFIG.COLOR_BG[0]}, ${CONFIG.COLOR_BG[1]}, ${CONFIG.COLOR_BG[2]})`;
+        APP.ctx.fillRect(0, 0, APP.width, APP.height);
+    }
+
+    // Execute Mode
+    MODES[APP.mode].fn();
+
+    // If Pixel Mode, Put ImageData
+    if (MODES[APP.mode].pixel) {
+        APP.ctx.putImageData(APP.imageData, 0, 0);
+    }
+
+    APP.frameCount++;
+}
+
+// --- Initialization ---
+function init() {
+    APP.canvas = document.getElementById('cvs');
+    APP.ctx = APP.canvas.getContext('2d', { alpha: false }); // Optimize for no transparency
+    
+    APP.canvas.width = CONFIG.WIN_W;
+    APP.canvas.height = CONFIG.WIN_H;
+
+    // Buffer init
+    APP.imageData = APP.ctx.createImageData(CONFIG.WIN_W, CONFIG.WIN_H);
+    APP.buf32 = new Uint32Array(APP.imageData.data.buffer);
+
+    setupInputHandlers();
+}
+
+function startAudio(stream, isFile = false) {
+    if (!APP.audioCtx) {
+        APP.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    
+    // Stop old source if exists
+    if (APP.source) {
+        // We can't easily disconnect streams without potentially stopping them
+        // but for a single page app, replacing the reference is usually enough
+        // provided the old one gets GC'd or disconnected.
+        try { APP.source.disconnect(); } catch(e) {}
+    }
+
+    APP.analyser = APP.audioCtx.createAnalyser();
+    APP.analyser.fftSize = CONFIG.FFT_SIZE;
+    APP.analyser.smoothingTimeConstant = CONFIG.SMOOTHING;
+
+    if (isFile) {
+        APP.source = APP.audioCtx.createMediaElementSource(stream);
+        stream.play();
+    } else {
+        APP.source = APP.audioCtx.createMediaStreamSource(stream);
+    }
+
+    APP.source.connect(APP.analyser);
+    // If file, connect to destination (speakers) too. If mic or capture, do NOT (feedback loop).
+    if (isFile) APP.source.connect(APP.audioCtx.destination);
+
+    APP.dataArray = new Uint8Array(APP.analyser.frequencyBinCount);
+    APP.timeArray = new Float32Array(APP.analyser.fftSize);
+
+    APP.running = true;
+    document.getElementById('overlay').classList.add('hidden');
+    loop();
+}
+
+function setupInputHandlers() {
+    // Buttons
+    const btnCapture = document.getElementById('btn-capture');
+    const btnMic = document.getElementById('btn-mic');
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+
+    // 1. Capture (System/Tab)
+    btnCapture.addEventListener('click', () => {
+        // getDisplayMedia requires video constraints, but we can request minimal resolution
+        // and ignore the video track to save RAM.
+        navigator.mediaDevices.getDisplayMedia({ video: { width: 1, height: 1 }, audio: true })
+        .then(stream => {
+            if (stream.getAudioTracks().length === 0) {
+                alert("No audio shared! Please check 'Share tab audio' in the browser dialog.");
+                return;
+            }
+            // Note: We do NOT stop the video track immediately because on some browsers 
+            // (like Chrome), stopping the video track stops the whole stream including audio.
+            // We just don't use it.
+            startAudio(stream, false);
+        })
+        .catch(err => {
+            console.error(err);
+            // Don't alert if user just cancelled
+            if (err.name !== 'NotAllowedError') alert("Capture failed: " + err);
+        });
+    });
+
+    // 2. Microphone
+    btnMic.addEventListener('click', () => {
+        navigator.mediaDevices.getUserMedia({ audio: true, video: false })
+        .then(stream => startAudio(stream, false))
+        .catch(err => alert("Mic access denied: " + err));
+    });
+
+    // 3. File Input
+    dropZone.addEventListener('click', () => fileInput.click());
+    
+    fileInput.addEventListener('change', function() {
+        if (this.files.length > 0) handleFile(this.files[0]);
+    });
+
+    // Drag & Drop
+    const overlay = document.getElementById('overlay');
+    overlay.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.style.background = 'var(--fg)';
+        dropZone.style.color = 'var(--bg)';
+    });
+
+    overlay.addEventListener('dragleave', (e) => {
+        e.preventDefault();
+        dropZone.style.background = 'transparent';
+        dropZone.style.color = 'var(--fg)';
+    });
+
+    overlay.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.style.background = 'transparent';
+        dropZone.style.color = 'var(--fg)';
+        if (e.dataTransfer.files.length > 0) {
+            handleFile(e.dataTransfer.files[0]);
+        }
+    });
+
+    // Keyboard Controls
+    window.addEventListener('keydown', e => {
+        if (!APP.running && e.key !== 'r') return;
+        
+        if (e.key === 'Tab') {
+            e.preventDefault();
+            APP.mode = (APP.mode + 1) % MODES.length;
+            document.getElementById('statusLine').innerText = `Mode ${APP.mode}: ${MODES[APP.mode].name}`;
+        }
+        else if (e.key === 'q' || e.key === 'Q') {
+            APP.running = false;
+            cancelAnimationFrame(APP.rafId);
+            document.getElementById('overlay').classList.remove('hidden');
+        }
+    });
+}
+
+function handleFile(file) {
+    if(!file.type.startsWith('audio')) return;
+    
+    const audio = new Audio();
+    audio.src = URL.createObjectURL(file);
+    audio.loop = true;
+    startAudio(audio, true);
+}
+
+// Boot
+window.onload = init;
+
+</script>
+</body>
+</html>
