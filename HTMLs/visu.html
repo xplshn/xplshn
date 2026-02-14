@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>VISU</title>
 <style>
+    /* * VISU - Orthogonal Audio Visualizer
+     * License: ISC
+     */
     :root {
         --bg: #050505;
         --fg: #00FF99;
@@ -30,6 +33,7 @@
         box-shadow: 0 0 20px rgba(0, 255, 153, 0.1);
     }
 
+    /* --- Overlay / Menu --- */
     #overlay {
         position: absolute;
         top: 0; left: 0; width: 100%; height: 100%;
@@ -83,10 +87,10 @@
         display: block;
     }
 
+    /* --- HUD --- */
     .status {
         position: absolute;
-        top: 10px;
-        left: 10px;
+        top: 10px; left: 10px;
         background: rgba(0, 0, 0, 0.5);
         padding: 5px 10px;
         pointer-events: none;
@@ -94,18 +98,104 @@
         z-index: 5;
     }
 
-    .controls {
+    .controls-hint {
         position: absolute;
-        bottom: 10px;
-        right: 10px;
+        bottom: 10px; right: 10px;
         font-size: 12px;
         opacity: 0.7;
         text-align: right;
+        pointer-events: none;
     }
 
-    input[type="file"] {
-        display: none;
+    /* --- Audio Player Controls --- */
+    #player {
+        position: absolute;
+        bottom: 40px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 600px;
+        background: rgba(0, 0, 0, 0.8);
+        border: 1px solid var(--fg);
+        padding: 10px;
+        display: none; /* Hidden by default */
+        z-index: 8;
     }
+
+    #player.active {
+        display: block;
+    }
+
+    #trackName {
+        text-align: center;
+        font-size: 12px;
+        color: var(--accent);
+        margin-bottom: 8px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+    .progress-container {
+        width: 100%;
+        height: 10px;
+        background: #111;
+        cursor: pointer;
+        margin-bottom: 8px;
+        position: relative;
+    }
+
+    .progress-fill {
+        height: 100%;
+        background: var(--fg);
+        width: 0%;
+        pointer-events: none;
+    }
+
+    .progress-tooltip {
+        position: absolute;
+        top: -30px;
+        background: var(--bg);
+        color: var(--fg);
+        border: 1px solid var(--fg);
+        padding: 4px 6px;
+        font-size: 11px;
+        pointer-events: none;
+        display: none;
+        white-space: nowrap;
+        transform: translateX(-50%);
+        box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+    }
+
+    .progress-container:hover .progress-fill {
+        background: var(--accent);
+    }
+    
+    .progress-container:hover .progress-tooltip {
+        display: block;
+    }
+
+    .player-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 14px;
+    }
+
+    .player-btns button {
+        border: none;
+        padding: 5px 10px;
+        font-size: 18px;
+        min-width: 40px;
+    }
+    
+    .player-btns button:hover {
+        box-shadow: none;
+        text-shadow: 0 0 5px var(--fg);
+    }
+
+    input[type="file"] { display: none; }
 </style>
 </head>
 <body>
@@ -124,7 +214,25 @@
 </div>
 
 <div class="status" id="statusLine">Mode 0: Spectrum</div>
-<div class="controls">TAB: Next Mode | Q: Stop | R: Reset</div>
+<div class="controls-hint">TAB: Next Mode | Q: Stop</div>
+
+<!-- Player UI -->
+<div id="player">
+    <div id="trackName">No File Playing</div>
+    <div class="progress-container" id="progressBar">
+        <div class="progress-fill" id="progressFill"></div>
+        <div class="progress-tooltip" id="progressTooltip">00:00</div>
+    </div>
+    <div class="player-row">
+        <span id="currTime">00:00</span>
+        <div class="player-btns">
+            <button id="btnSeekBack">&lt;&lt;</button>
+            <button id="btnPlayPause">||</button>
+            <button id="btnSeekFwd">&gt;&gt;</button>
+        </div>
+        <span id="totalTime">00:00</span>
+    </div>
+</div>
 
 <canvas id="cvs"></canvas>
 
@@ -133,21 +241,13 @@
  * config.js - Runtime Configuration
  */
 const CONFIG = {
-    // Window Configuration (Canvas resolution)
     WIN_W: 1200,
     WIN_H: 800,
-
-    // Audio Processing
-    FFT_SIZE: 2048,      // Power of 2
-    SMOOTHING: 0.3,      // 0.0-1.0
-    AMP_SCALE: 1.5,      // Adjusted for Web Audio normalized values (0.0-1.0) vs C int16
-
-    // Visual Theme
+    FFT_SIZE: 2048,
+    SMOOTHING: 0.3,
+    AMP_SCALE: 1.5,
     COLOR_BG: [5, 5, 5],
     COLOR_FG: [0, 255, 153],
-    
-    // Limits
-    MAX_FPS: 60
 };
 
 /**
@@ -159,20 +259,20 @@ const APP = {
     audioCtx: null,
     analyser: null,
     source: null,
-    dataArray: null, // Uint8Array for ByteFrequency
-    timeArray: null, // Float32Array for TimeDomain
+    audioElement: null, // Only used for File mode
+    dataArray: null,
+    timeArray: null,
     rafId: null,
     mode: 0,
     frameCount: 0,
     running: false,
     width: CONFIG.WIN_W,
     height: CONFIG.WIN_H,
-    
-    // Pre-allocated for performance
     imageData: null,
     buf32: null, 
 };
 
+// --- Visualization Modes ---
 const MODES = [
     { name: "Spectrum", fn: draw_spectrum },
     { name: "Oscilloscope", fn: draw_oscilloscope },
@@ -184,21 +284,22 @@ const MODES = [
     { name: "Tunnel Vision", fn: draw_tunnel, pixel: true },
     { name: "Frequency Mandala", fn: draw_mandala },
     { name: "Strange Attractor", fn: draw_strange },
-    { name: "Plasma Field", fn: draw_plasma, pixel: true }
+    { name: "Plasma Field", fn: draw_plasma, pixel: true },
+    { name: "Starfield", fn: draw_starfield },
+    { name: "Retro Terrain", fn: draw_terrain }
 ];
 
-// --- Math Helpers ---
+// --- Math & Color ---
 const PI = Math.PI;
 const TWO_PI = Math.PI * 2;
 
 function hsv_to_rgb(h, s, v) {
-    let r, g, b;
-    let i = Math.floor(h / 60);
-    let f = h / 60 - i;
-    let p = v * (1 - s);
-    let q = v * (1 - f * s);
-    let t = v * (1 - (1 - f) * s);
-    
+    let r, g, b, i, f, p, q, t;
+    i = Math.floor(h / 60);
+    f = h / 60 - i;
+    p = v * (1 - s);
+    q = v * (1 - f * s);
+    t = v * (1 - (1 - f) * s);
     switch (i % 6) {
         case 0: r = v; g = t; b = p; break;
         case 1: r = q; g = v; b = p; break;
@@ -207,385 +308,320 @@ function hsv_to_rgb(h, s, v) {
         case 4: r = t; g = p; b = v; break;
         case 5: r = v; g = p; b = q; break;
     }
-    return {
-        r: Math.floor(r * 255),
-        g: Math.floor(g * 255),
-        b: Math.floor(b * 255)
-    };
+    return { r: Math.floor(r * 255), g: Math.floor(g * 255), b: Math.floor(b * 255) };
 }
 
-// --- Pixel Manipulation Helpers ---
-// We use a Uint32 buffer view for speed (setting 1 integer vs 4 bytes)
-function setPixel(x, y, r, g, b, a = 255) {
-    if (x < 0 || x >= APP.width || y < 0 || y >= APP.height) return;
-    // Little-endian: ABGR
-    APP.buf32[y * APP.width + x] = 
-        (a << 24) | (b << 16) | (g << 8) | r;
+function formatTime(seconds) {
+    if (isNaN(seconds) || seconds < 0) return "00:00";
+    const m = Math.floor(seconds / 60);
+    const s = Math.floor(seconds % 60);
+    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
 }
 
-// --- Mode 0: Spectrum ---
+// --- Drawing Functions ---
+
 function draw_spectrum() {
     const n_bars = 100;
-    const width = APP.width / n_bars;
-    const bufferLength = APP.analyser.frequencyBinCount;
-    
+    const w = APP.width / n_bars;
+    const len = APP.analyser.frequencyBinCount;
     for (let i = 0; i < n_bars; i++) {
-        // Logarithmic scale mapping
-        let idx = Math.floor(Math.pow(i / n_bars, 2.0) * (bufferLength));
-        if (idx < 0) idx = 0;
-        if (idx >= bufferLength) idx = bufferLength - 1;
-
+        let idx = Math.floor(Math.pow(i / n_bars, 2.0) * len);
         let val = APP.dataArray[idx] * CONFIG.AMP_SCALE; 
         if (val > APP.height) val = APP.height;
-        if (val < 0) val = 0;
-
-        const h = val;
-        
-        let r = h / 2;
-        let g = 255 - h / 4;
-        let b = 150;
-        
+        let r = val / 2, g = 255 - val / 4, b = 150;
         APP.ctx.fillStyle = `rgba(${r},${g},${b},1)`;
-        APP.ctx.fillRect(i * width, APP.height - h, width - 1, h);
+        APP.ctx.fillRect(i * w, APP.height - val, w - 1, val);
     }
 }
 
-// --- Mode 1: Oscilloscope ---
 function draw_oscilloscope() {
     APP.analyser.getFloatTimeDomainData(APP.timeArray);
-    
     APP.ctx.lineWidth = 2;
     APP.ctx.strokeStyle = `rgb(0, 255, 100)`;
     APP.ctx.beginPath();
-
     const sliceWidth = APP.width / APP.timeArray.length;
     let x = 0;
-
     for (let i = 0; i < APP.timeArray.length; i++) {
-        const v = APP.timeArray[i] * 0.5 + 0.5; // Normalized to 0-1
-        // Scale to Amplitude
+        const v = APP.timeArray[i] * 0.5 + 0.5;
         const y = v * APP.height;
-
-        if (i === 0) APP.ctx.moveTo(x, y);
-        else APP.ctx.lineTo(x, y);
-
+        if (i === 0) APP.ctx.moveTo(x, y); else APP.ctx.lineTo(x, y);
         x += sliceWidth;
     }
     APP.ctx.stroke();
 }
 
-// --- Mode 2: Radial Burst ---
 function draw_radial() {
-    const cx = APP.width / 2;
-    const cy = APP.height / 2;
-    const radius = 100;
-    const n_points = 120;
-    const bufferLength = APP.analyser.frequencyBinCount;
-
-    for (let i = 0; i < n_points; i++) {
-        let idx = i * 2;
-        if (idx >= bufferLength) idx = bufferLength - 1;
-        
-        let amp = APP.dataArray[idx] * CONFIG.AMP_SCALE * 0.8; 
+    const cx = APP.width / 2, cy = APP.height / 2;
+    const n = 120, len = APP.analyser.frequencyBinCount;
+    for (let i = 0; i < n; i++) {
+        let idx = i * 2; if (idx >= len) idx = len - 1;
+        let amp = APP.dataArray[idx] * CONFIG.AMP_SCALE * 0.8;
         if (amp > 300) amp = 300;
-
-        let angle = (TWO_PI * i) / n_points;
-        let x_start = cx + Math.cos(angle) * radius;
-        let y_start = cy + Math.sin(angle) * radius;
-        let x_end = cx + Math.cos(angle) * (radius + amp);
-        let y_end = cy + Math.sin(angle) * (radius + amp);
-
+        let a = (TWO_PI * i) / n;
         APP.ctx.strokeStyle = `rgb(255, ${50 + amp}, 50)`;
         APP.ctx.lineWidth = 2;
         APP.ctx.beginPath();
-        APP.ctx.moveTo(x_start, y_start);
-        APP.ctx.lineTo(x_end, y_end);
+        APP.ctx.moveTo(cx + Math.cos(a) * 100, cy + Math.sin(a) * 100);
+        APP.ctx.lineTo(cx + Math.cos(a) * (100 + amp), cy + Math.sin(a) * (100 + amp));
         APP.ctx.stroke();
     }
 }
 
-// --- Mode 3: Circular Spectrum ---
 function draw_circular_spectrum() {
-    const cx = APP.width / 2;
-    const cy = APP.height / 2;
-    const n_bars = 180;
-    const bufferLength = APP.analyser.frequencyBinCount;
-
-    for (let i = 0; i < n_bars; i++) {
-        let idx = Math.floor((i * bufferLength) / n_bars);
+    const cx = APP.width / 2, cy = APP.height / 2;
+    const n = 180, len = APP.analyser.frequencyBinCount;
+    for (let i = 0; i < n; i++) {
+        let idx = Math.floor((i * len) / n);
         let amp = APP.dataArray[idx] * 0.8;
         if (amp > 250) amp = 250;
-
-        let angle = (TWO_PI * i) / n_bars;
-        let radius = 150 + amp;
-
-        let x = cx + Math.cos(angle) * radius;
-        let y = cy + Math.sin(angle) * radius;
-
-        let col = hsv_to_rgb((i * 360.0) / n_bars, 0.9, 1.0);
-        
-        APP.ctx.fillStyle = `rgb(${col.r}, ${col.g}, ${col.b})`;
-        APP.ctx.fillRect(x, y, 3, 3);
+        let a = (TWO_PI * i) / n;
+        let r = 150 + amp;
+        let c = hsv_to_rgb((i * 360) / n, 0.9, 1.0);
+        APP.ctx.fillStyle = `rgb(${c.r}, ${c.g}, ${c.b})`;
+        APP.ctx.fillRect(cx + Math.cos(a) * r, cy + Math.sin(a) * r, 3, 3);
     }
 }
 
-// --- Mode 4: Psychedelic Ripple ---
 function draw_psychedelic_ripple() {
     const time = APP.frameCount * 0.02;
-    const cx = APP.width / 2;
-    const cy = APP.height / 2;
-    const bufferLength = APP.analyser.frequencyBinCount;
-    
-    // Lock buffer for pixel access
-    const buf = APP.buf32;
-    const w = APP.width;
-    const h = APP.height;
-
-    // Iterate with step 4 for performance (matching C code logic)
-    // Note: To use setPixel efficiently in JS, we fill 4x4 blocks
-    // or just calculate for every 4th pixel.
-    
+    const cx = APP.width / 2, cy = APP.height / 2;
+    const len = APP.analyser.frequencyBinCount;
+    const buf = APP.buf32, w = APP.width, h = APP.height;
     for (let y = 0; y < h; y += 4) {
         for (let x = 0; x < w; x += 4) {
-            let dx = (x - cx) / 200.0;
-            let dy = (y - cy) / 200.0;
+            let dx = (x - cx) / 200.0, dy = (y - cy) / 200.0;
             let dist = Math.sqrt(dx * dx + dy * dy);
-
-            let freq_idx = Math.floor(dist * 20) % bufferLength;
-            let intensity = APP.dataArray[freq_idx] / 100.0;
-
-            let wave_val = Math.sin(dist * 5.0 - time + intensity * 3.0);
-            
-            let hue = (dist * 100.0 + time * 50.0) % 360.0;
-            let col = hsv_to_rgb(hue, 0.8, (wave_val + 1.0) / 2.0);
-
-            // Fill 4x4 block
-            const pixel = (255 << 24) | (col.b << 16) | (col.g << 8) | col.r;
+            let idx = Math.floor(dist * 20) % len;
+            let val = Math.sin(dist * 5.0 - time + (APP.dataArray[idx]/100.0) * 3.0);
+            let c = hsv_to_rgb((dist * 100 + time * 50) % 360, 0.8, (val + 1) / 2);
+            const p = (255 << 24) | (c.b << 16) | (c.g << 8) | c.r;
             for(let by=0; by<4; by++) {
                 if (y+by >= h) break;
-                let rowOffset = (y+by) * w;
                 for(let bx=0; bx<4; bx++) {
                     if (x+bx >= w) break;
-                    buf[rowOffset + (x+bx)] = pixel;
+                    buf[(y+by)*w + (x+bx)] = p;
                 }
             }
         }
     }
 }
 
-// --- Mode 5: Matrix Rain ---
 function draw_matrix_rain() {
-    const cols = 60;
-    const col_width = APP.width / cols;
-    const bufferLength = APP.analyser.frequencyBinCount;
-
+    const cols = 60, cw = APP.width / cols;
+    const len = APP.analyser.frequencyBinCount;
     for (let i = 0; i < cols; i++) {
-        let idx = Math.floor((i * bufferLength) / cols);
-        let intensity = APP.dataArray[idx] / 150.0;
-        if (intensity > 1.0) intensity = 1.0;
-
-        let drops = Math.floor(intensity * 40);
-
+        let idx = Math.floor((i * len) / cols);
+        let drops = Math.floor((APP.dataArray[idx] / 150.0) * 40);
         for (let j = 0; j < drops; j++) {
             let y = Math.floor(APP.frameCount * 3 + j * 20 + i * 13) % APP.height;
-            let alpha = 1.0 - (j / drops);
-
-            APP.ctx.fillStyle = `rgba(0, 255, 100, ${alpha})`;
-            APP.ctx.fillRect(i * col_width, y, col_width - 1, 2);
+            let a = 1.0 - (j / drops);
+            APP.ctx.fillStyle = `rgba(0, 255, 100, ${a})`;
+            APP.ctx.fillRect(i * cw, y, cw - 1, 2);
         }
     }
 }
 
-// --- Mode 6: Spiral Galaxy ---
 function draw_spiral() {
-    const cx = APP.width / 2;
-    const cy = APP.height / 2;
-    const time = APP.frameCount * 0.01;
-    const bufferLength = APP.analyser.frequencyBinCount;
-
+    const cx = APP.width / 2, cy = APP.height / 2;
+    const t = APP.frameCount * 0.01;
+    const len = APP.analyser.frequencyBinCount;
     for (let i = 0; i < 500; i++) {
-        let idx = i % bufferLength;
+        let idx = i % len;
         let amp = APP.dataArray[idx] * 0.5;
-
-        let t = i * 0.05 + time;
-        let radius = i * 0.8 + amp;
-        let angle = t * 0.3 + radius * 0.02;
-
-        let x = cx + Math.cos(angle) * radius;
-        let y = cy + Math.sin(angle) * radius;
-
-        let col = hsv_to_rgb((t * 20.0) % 360, 0.9, 1.0);
-        APP.ctx.fillStyle = `rgba(${col.r}, ${col.g}, ${col.b}, 0.8)`;
-        APP.ctx.fillRect(x, y, 2, 2);
+        let rad = i * 0.8 + amp;
+        let ang = (i * 0.05 + t) * 0.3 + rad * 0.02;
+        let c = hsv_to_rgb(((i * 0.05 + t) * 20) % 360, 0.9, 1.0);
+        APP.ctx.fillStyle = `rgba(${c.r}, ${c.g}, ${c.b}, 0.8)`;
+        APP.ctx.fillRect(cx + Math.cos(ang) * rad, cy + Math.sin(ang) * rad, 2, 2);
     }
 }
 
-// --- Mode 7: Tunnel Vision ---
 function draw_tunnel() {
-    const cx = APP.width / 2;
-    const cy = APP.height / 2;
-    const time = APP.frameCount * 0.05;
-    const bufferLength = APP.analyser.frequencyBinCount;
-    const w = APP.width;
-    const h = APP.height;
-    const buf = APP.buf32;
-
+    const cx = APP.width / 2, cy = APP.height / 2;
+    const t = APP.frameCount * 0.05;
+    const len = APP.analyser.frequencyBinCount;
+    const buf = APP.buf32, w = APP.width, h = APP.height;
     for (let y = 0; y < h; y += 3) {
         for (let x = 0; x < w; x += 3) {
-            let dx = x - cx;
-            let dy = y - cy;
-            let angle = Math.atan2(dy, dx);
-            let dist = Math.sqrt(dx*dx + dy*dy);
-
-            if (dist < 1.0) dist = 1.0;
-
-            let u = time + 100.0 / dist;
-            let freq_idx = Math.floor(angle * 10.0 + u * 5.0) % bufferLength;
-            if (freq_idx < 0) freq_idx += bufferLength;
-
-            let intensity = APP.dataArray[freq_idx] / 200.0;
-            let brightness = (u + intensity) % 1.0;
-
-            let hue = (angle * 57.3 + time * 10.0) % 360.0;
-            let col = hsv_to_rgb(hue, 0.7, brightness);
-
-            // Fill 3x3 block
-            const pixel = (255 << 24) | (col.b << 16) | (col.g << 8) | col.r;
-             for(let by=0; by<3; by++) {
+            let dx = x - cx, dy = y - cy;
+            let ang = Math.atan2(dy, dx), dist = Math.sqrt(dx*dx + dy*dy);
+            if (dist < 1) dist = 1;
+            let u = t + 100.0 / dist;
+            let idx = Math.floor(ang * 10.0 + u * 5.0) % len;
+            if (idx < 0) idx += len;
+            let bri = (u + APP.dataArray[idx]/200.0) % 1.0;
+            let c = hsv_to_rgb((ang * 57.3 + t * 10) % 360, 0.7, bri);
+            const p = (255 << 24) | (c.b << 16) | (c.g << 8) | c.r;
+            for(let by=0; by<3; by++) {
                 if (y+by >= h) break;
-                let rowOffset = (y+by) * w;
                 for(let bx=0; bx<3; bx++) {
                     if (x+bx >= w) break;
-                    buf[rowOffset + (x+bx)] = pixel;
+                    buf[(y+by)*w + (x+bx)] = p;
                 }
             }
         }
     }
 }
 
-// --- Mode 8: Frequency Mandala ---
 function draw_mandala() {
-    const cx = APP.width / 2;
-    const cy = APP.height / 2;
-    const arms = 8;
-    const bufferLength = APP.analyser.frequencyBinCount;
-
+    const cx = APP.width / 2, cy = APP.height / 2;
+    const arms = 8, len = APP.analyser.frequencyBinCount;
     for (let arm = 0; arm < arms; arm++) {
-        let base_angle = (TWO_PI * arm) / arms;
-
+        let base = (TWO_PI * arm) / arms;
         for (let i = 0; i < 100; i++) {
-            let idx = i * 3;
-            if (idx >= bufferLength) idx = bufferLength - 1;
-
-            let amp = APP.dataArray[idx] * 0.6;
-            let radius = 50 + i * 3 + amp;
-            let angle_offset = Math.sin(i * 0.1) * 0.3;
-
-            let x = cx + Math.cos(base_angle + angle_offset) * radius;
-            let y = cy + Math.sin(base_angle + angle_offset) * radius;
-
-            let col = hsv_to_rgb(i * 3.6 + arm * 45.0, 0.8, 1.0);
-            APP.ctx.fillStyle = `rgb(${col.r}, ${col.g}, ${col.b})`;
-            APP.ctx.fillRect(x, y, 2, 2);
+            let idx = i * 3; if (idx >= len) idx = len - 1;
+            let r = 50 + i * 3 + APP.dataArray[idx] * 0.6;
+            let ang = base + Math.sin(i * 0.1) * 0.3;
+            let c = hsv_to_rgb(i * 3.6 + arm * 45, 0.8, 1.0);
+            APP.ctx.fillStyle = `rgb(${c.r}, ${c.g}, ${c.b})`;
+            APP.ctx.fillRect(cx + Math.cos(ang) * r, cy + Math.sin(ang) * r, 2, 2);
         }
     }
 }
 
-// --- Mode 9: Strange Attractor ---
-// Static state for Attractor
-const ATTRACTOR = { x: 0.1, y: 0.1 };
-
+const ATTR = { x: 0.1, y: 0.1 };
 function draw_strange() {
-    let dt = 0.01;
     let bass = 0, mid = 0;
-    
-    // Low freq avg
     for (let i = 0; i < 10; i++) bass += APP.dataArray[i];
-    bass /= 1000.0;
-
-    // Mid freq avg
     for (let i = 20; i < 40; i++) mid += APP.dataArray[i];
-    mid /= 1000.0;
-
-    let a = 1.5 + bass * 2.0;
-    let b = -1.8 + mid * 1.5;
-    let c = 1.6;
-    let d = 0.9;
-
-    let x = ATTRACTOR.x;
-    let y = ATTRACTOR.y;
-
+    bass /= 1000.0; mid /= 1000.0;
+    let a = 1.5 + bass * 2, b = -1.8 + mid * 1.5, c = 1.6, d = 0.9;
+    let x = ATTR.x, y = ATTR.y;
     for (let i = 0; i < 2000; i++) {
-        let x_new = Math.sin(a * y) + c * Math.cos(a * x);
-        let y_new = Math.sin(b * x) + d * Math.cos(b * y);
-        x = x_new;
-        y = y_new;
-
-        let px = Math.floor((x + 3.0) * APP.width / 6.0);
-        let py = Math.floor((y + 3.0) * APP.height / 6.0);
-        
-        // Coloring
-        let col = hsv_to_rgb((i * 0.36 + APP.frameCount) % 360, 0.9, 1.0);
-        APP.ctx.fillStyle = `rgba(${col.r}, ${col.g}, ${col.b}, 0.6)`;
-        APP.ctx.fillRect(px, py, 1, 1);
+        let xn = Math.sin(a * y) + c * Math.cos(a * x);
+        let yn = Math.sin(b * x) + d * Math.cos(b * y);
+        x = xn; y = yn;
+        let c_rgb = hsv_to_rgb((i * 0.36 + APP.frameCount) % 360, 0.9, 1.0);
+        APP.ctx.fillStyle = `rgba(${c_rgb.r}, ${c_rgb.g}, ${c_rgb.b}, 0.6)`;
+        APP.ctx.fillRect(Math.floor((x + 3) * APP.width / 6), Math.floor((y + 3) * APP.height / 6), 1, 1);
     }
-    
-    ATTRACTOR.x = x;
-    ATTRACTOR.y = y;
+    ATTR.x = x; ATTR.y = y;
 }
 
-// --- Mode 10: Plasma Field ---
 function draw_plasma() {
-    const time = APP.frameCount * 0.03;
-    const bufferLength = APP.analyser.frequencyBinCount;
-    const w = APP.width;
-    const h = APP.height;
-    const buf = APP.buf32;
-
+    const t = APP.frameCount * 0.03;
+    const len = APP.analyser.frequencyBinCount;
+    const buf = APP.buf32, w = APP.width, h = APP.height;
     for (let y = 0; y < h; y += 2) {
         for (let x = 0; x < w; x += 2) {
-             let freq_x = Math.floor((x * bufferLength) / w);
-             let freq_y = Math.floor((y * bufferLength) / h);
-             
-             // Safety check on indices
-             if(freq_x >= bufferLength) freq_x = bufferLength -1;
-             if(freq_y >= bufferLength) freq_y = bufferLength -1;
-
-             let audio_mod = (APP.dataArray[freq_x] + APP.dataArray[freq_y]) / 400.0;
-
-             let v = Math.sin(x * 0.01 + time) +
-                     Math.sin(y * 0.01 + time * 1.3) +
-                     Math.sin((x + y) * 0.008 + time * 0.7) +
-                     Math.sin(Math.sqrt(x * x + y * y) * 0.01 + time * 2.0) +
-                     audio_mod * 2.0;
-
+            let fx = Math.floor((x * len) / w), fy = Math.floor((y * len) / h);
+            if (fx >= len) fx = len - 1; if (fy >= len) fy = len - 1;
+            let mod = (APP.dataArray[fx] + APP.dataArray[fy]) / 400.0;
+            let v = Math.sin(x * 0.01 + t) + Math.sin(y * 0.01 + t * 1.3) +
+                    Math.sin((x + y) * 0.008 + t * 0.7) +
+                    Math.sin(Math.sqrt(x*x + y*y) * 0.01 + t * 2.0) + mod * 2.0;
             v = (v + 4.0) / 8.0;
-            
-            let col = hsv_to_rgb(v * 360.0, 0.8, v);
-            
-            // Fill 2x2 block
-            const pixel = (255 << 24) | (col.b << 16) | (col.g << 8) | col.r;
-             for(let by=0; by<2; by++) {
-                if (y+by >= h) break;
-                let rowOffset = (y+by) * w;
-                for(let bx=0; bx<2; bx++) {
-                    if (x+bx >= w) break;
-                    buf[rowOffset + (x+bx)] = pixel;
-                }
-            }
+            let c = hsv_to_rgb(v * 360, 0.8, v);
+            const p = (255 << 24) | (c.b << 16) | (c.g << 8) | c.r;
+            buf[y*w + x] = buf[y*w + x+1] = buf[(y+1)*w + x] = buf[(y+1)*w + x+1] = p;
         }
     }
 }
 
-// --- Main Loop ---
+// --- NEW VISUALIZATIONS ---
+
+const STARS = Array(200).fill().map(() => ({
+    x: (Math.random() - 0.5) * 2000,
+    y: (Math.random() - 0.5) * 2000,
+    z: Math.random() * 2000
+}));
+
+function draw_starfield() {
+    const cx = APP.width / 2, cy = APP.height / 2;
+    // Bass kick detection
+    let bass = 0;
+    for(let i=0; i<10; i++) bass += APP.dataArray[i];
+    bass /= 10.0;
+    
+    const speed = 10 + (bass * 0.5); // Modulate speed
+
+    APP.ctx.fillStyle = '#FFF';
+    
+    STARS.forEach(star => {
+        star.z -= speed;
+        if (star.z <= 0) {
+            star.z = 2000;
+            star.x = (Math.random() - 0.5) * 2000;
+            star.y = (Math.random() - 0.5) * 2000;
+        }
+
+        const scale = 500 / star.z;
+        const sx = cx + star.x * scale;
+        const sy = cy + star.y * scale;
+        const r = Math.max(0.5, scale * 3);
+
+        if (sx > 0 && sx < APP.width && sy > 0 && sy < APP.height) {
+            APP.ctx.globalAlpha = Math.min(1, scale);
+            APP.ctx.beginPath();
+            APP.ctx.arc(sx, sy, r, 0, TWO_PI);
+            APP.ctx.fill();
+        }
+    });
+    APP.ctx.globalAlpha = 1;
+}
+
+function draw_terrain() {
+    const w = APP.width, h = APP.height;
+    const cx = w / 2, cy = h / 2;
+    APP.analyser.getFloatTimeDomainData(APP.timeArray);
+    
+    // Retro Grid
+    APP.ctx.strokeStyle = '#00FF99';
+    APP.ctx.lineWidth = 1;
+    
+    const lines = 20;
+    const t = (APP.frameCount % 20) / 20; // 0 to 1
+    
+    // Vertical
+    for(let i=-10; i<=10; i++) {
+        APP.ctx.beginPath();
+        // Perspective projection: Top (horizon) is narrow, Bottom is wide
+        APP.ctx.moveTo(cx + i * 20, cy); 
+        APP.ctx.lineTo(cx + i * 100, h);
+        APP.ctx.stroke();
+    }
+    
+    // Horizontal (Moving)
+    for(let i=0; i<lines; i++) {
+        let z = i + t; // 0 to 20
+        let y = cy + (z / lines) * (h - cy);
+        
+        // Modulate y with waveform
+        let waveIdx = Math.floor((i / lines) * APP.timeArray.length);
+        let waveOffset = APP.timeArray[waveIdx] * 50;
+
+        APP.ctx.beginPath();
+        APP.ctx.moveTo(0, y + waveOffset);
+        APP.ctx.lineTo(w, y + waveOffset);
+        APP.ctx.strokeStyle = `rgba(0, 255, 153, ${i/lines})`;
+        APP.ctx.stroke();
+    }
+}
+
+
+// --- Main Loop & UI ---
+function updatePlayerUI() {
+    if (!APP.audioElement) return;
+    
+    const curr = APP.audioElement.currentTime;
+    const dur = APP.audioElement.duration || 0;
+    const pct = (curr / dur) * 100;
+    
+    document.getElementById('currTime').innerText = formatTime(curr);
+    document.getElementById('totalTime').innerText = formatTime(dur);
+    document.getElementById('progressFill').style.width = pct + '%';
+    
+    const btn = document.getElementById('btnPlayPause');
+    btn.innerText = APP.audioElement.paused ? "|>" : "||";
+}
+
 function loop() {
     if (!APP.running) return;
-
     APP.rafId = requestAnimationFrame(loop);
     APP.analyser.getByteFrequencyData(APP.dataArray);
 
-    // Clear Screen (Functional style: clear is just filling background)
-    // For Pixel modes, we clear ImageData buffer
+    if (APP.audioElement) updatePlayerUI();
+
     if (MODES[APP.mode].pixel) {
         APP.buf32.fill((255 << 24) | (CONFIG.COLOR_BG[2] << 16) | (CONFIG.COLOR_BG[1] << 8) | CONFIG.COLOR_BG[0]);
     } else {
@@ -593,43 +629,35 @@ function loop() {
         APP.ctx.fillRect(0, 0, APP.width, APP.height);
     }
 
-    // Execute Mode
     MODES[APP.mode].fn();
 
-    // If Pixel Mode, Put ImageData
-    if (MODES[APP.mode].pixel) {
-        APP.ctx.putImageData(APP.imageData, 0, 0);
-    }
-
+    if (MODES[APP.mode].pixel) APP.ctx.putImageData(APP.imageData, 0, 0);
     APP.frameCount++;
 }
 
 // --- Initialization ---
 function init() {
     APP.canvas = document.getElementById('cvs');
-    APP.ctx = APP.canvas.getContext('2d', { alpha: false }); // Optimize for no transparency
-    
+    APP.ctx = APP.canvas.getContext('2d', { alpha: false });
     APP.canvas.width = CONFIG.WIN_W;
     APP.canvas.height = CONFIG.WIN_H;
-
-    // Buffer init
     APP.imageData = APP.ctx.createImageData(CONFIG.WIN_W, CONFIG.WIN_H);
     APP.buf32 = new Uint32Array(APP.imageData.data.buffer);
-
     setupInputHandlers();
 }
 
 function startAudio(stream, isFile = false) {
-    if (!APP.audioCtx) {
-        APP.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (!APP.audioCtx) APP.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    
+    if (APP.source) {
+        // Cleanup old source if needed
+        try { APP.source.disconnect(); } catch(e){}
     }
     
-    // Stop old source if exists
-    if (APP.source) {
-        // We can't easily disconnect streams without potentially stopping them
-        // but for a single page app, replacing the reference is usually enough
-        // provided the old one gets GC'd or disconnected.
-        try { APP.source.disconnect(); } catch(e) {}
+    // Clear old Element reference
+    if (APP.audioElement && !isFile) {
+        APP.audioElement.pause();
+        APP.audioElement = null;
     }
 
     APP.analyser = APP.audioCtx.createAnalyser();
@@ -637,14 +665,32 @@ function startAudio(stream, isFile = false) {
     APP.analyser.smoothingTimeConstant = CONFIG.SMOOTHING;
 
     if (isFile) {
+        APP.audioElement = stream; // Stream is the Audio Element here
         APP.source = APP.audioCtx.createMediaElementSource(stream);
+        
+        // MPRIS / Media Session Setup (Handled in handleFile for metadata, but actions here)
+        if ('mediaSession' in navigator) {
+            navigator.mediaSession.setActionHandler('play', () => stream.play());
+            navigator.mediaSession.setActionHandler('pause', () => stream.pause());
+            navigator.mediaSession.setActionHandler('seekto', (details) => {
+                 if (details.fastSeek && 'fastSeek' in stream) {
+                     stream.fastSeek(details.seekTime);
+                 } else {
+                     stream.currentTime = details.seekTime;
+                 }
+            });
+            navigator.mediaSession.setActionHandler('previoustrack', () => { stream.currentTime -= 10; });
+            navigator.mediaSession.setActionHandler('nexttrack', () => { stream.currentTime += 10; });
+        }
+
+        document.getElementById('player').classList.add('active');
         stream.play();
     } else {
         APP.source = APP.audioCtx.createMediaStreamSource(stream);
+        document.getElementById('player').classList.remove('active');
     }
 
     APP.source.connect(APP.analyser);
-    // If file, connect to destination (speakers) too. If mic or capture, do NOT (feedback loop).
     if (isFile) APP.source.connect(APP.audioCtx.destination);
 
     APP.dataArray = new Uint8Array(APP.analyser.frequencyBinCount);
@@ -656,75 +702,80 @@ function startAudio(stream, isFile = false) {
 }
 
 function setupInputHandlers() {
-    // Buttons
     const btnCapture = document.getElementById('btn-capture');
     const btnMic = document.getElementById('btn-mic');
     const dropZone = document.getElementById('dropZone');
     const fileInput = document.getElementById('fileInput');
 
-    // 1. Capture (System/Tab)
+    // Sources
     btnCapture.addEventListener('click', () => {
-        // getDisplayMedia requires video constraints, but we can request minimal resolution
-        // and ignore the video track to save RAM.
         navigator.mediaDevices.getDisplayMedia({ video: { width: 1, height: 1 }, audio: true })
         .then(stream => {
-            if (stream.getAudioTracks().length === 0) {
-                alert("No audio shared! Please check 'Share tab audio' in the browser dialog.");
-                return;
-            }
-            // Note: We do NOT stop the video track immediately because on some browsers 
-            // (like Chrome), stopping the video track stops the whole stream including audio.
-            // We just don't use it.
+            if (stream.getAudioTracks().length === 0) { alert("No audio shared!"); return; }
             startAudio(stream, false);
         })
-        .catch(err => {
-            console.error(err);
-            // Don't alert if user just cancelled
-            if (err.name !== 'NotAllowedError') alert("Capture failed: " + err);
-        });
+        .catch(console.error);
     });
 
-    // 2. Microphone
     btnMic.addEventListener('click', () => {
         navigator.mediaDevices.getUserMedia({ audio: true, video: false })
         .then(stream => startAudio(stream, false))
-        .catch(err => alert("Mic access denied: " + err));
+        .catch(e => alert("Mic denied: " + e));
     });
 
-    // 3. File Input
+    // File Input
     dropZone.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', function() { if (this.files.length) handleFile(this.files[0]); });
     
-    fileInput.addEventListener('change', function() {
-        if (this.files.length > 0) handleFile(this.files[0]);
-    });
-
     // Drag & Drop
     const overlay = document.getElementById('overlay');
-    overlay.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        dropZone.style.background = 'var(--fg)';
-        dropZone.style.color = 'var(--bg)';
-    });
-
-    overlay.addEventListener('dragleave', (e) => {
-        e.preventDefault();
-        dropZone.style.background = 'transparent';
-        dropZone.style.color = 'var(--fg)';
-    });
-
+    overlay.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.style.background = 'var(--fg)'; dropZone.style.color = 'var(--bg)'; });
+    overlay.addEventListener('dragleave', (e) => { e.preventDefault(); dropZone.style.background = 'transparent'; dropZone.style.color = 'var(--fg)'; });
     overlay.addEventListener('drop', (e) => {
         e.preventDefault();
-        dropZone.style.background = 'transparent';
-        dropZone.style.color = 'var(--fg)';
-        if (e.dataTransfer.files.length > 0) {
-            handleFile(e.dataTransfer.files[0]);
-        }
+        dropZone.style.background = 'transparent'; dropZone.style.color = 'var(--fg)';
+        if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
     });
 
-    // Keyboard Controls
-    window.addEventListener('keydown', e => {
-        if (!APP.running && e.key !== 'r') return;
+    // Player Controls
+    document.getElementById('btnPlayPause').addEventListener('click', () => {
+        if(APP.audioElement) APP.audioElement.paused ? APP.audioElement.play() : APP.audioElement.pause();
+    });
+    document.getElementById('btnSeekBack').addEventListener('click', () => {
+        if(APP.audioElement) APP.audioElement.currentTime -= 10;
+    });
+    document.getElementById('btnSeekFwd').addEventListener('click', () => {
+        if(APP.audioElement) APP.audioElement.currentTime += 10;
+    });
+    
+    // Progress Bar Interactions
+    const pBar = document.getElementById('progressBar');
+    const pTooltip = document.getElementById('progressTooltip');
+
+    pBar.addEventListener('click', (e) => {
+        if(!APP.audioElement) return;
+        const rect = pBar.getBoundingClientRect();
+        const pct = (e.clientX - rect.left) / rect.width;
+        APP.audioElement.currentTime = pct * APP.audioElement.duration;
+    });
+    
+    pBar.addEventListener('mousemove', (e) => {
+        if(!APP.audioElement) return;
+        const rect = pBar.getBoundingClientRect();
+        const px = e.clientX - rect.left;
+        const pct = Math.max(0, Math.min(1, px / rect.width));
         
+        // Tooltip Positioning
+        pTooltip.style.left = px + 'px';
+        
+        // Time Calculation
+        const time = pct * (APP.audioElement.duration || 0);
+        pTooltip.innerText = formatTime(time);
+    });
+
+    // Keys
+    window.addEventListener('keydown', e => {
+        if (!APP.running) return;
         if (e.key === 'Tab') {
             e.preventDefault();
             APP.mode = (APP.mode + 1) % MODES.length;
@@ -732,24 +783,48 @@ function setupInputHandlers() {
         }
         else if (e.key === 'q' || e.key === 'Q') {
             APP.running = false;
+            if(APP.audioElement) APP.audioElement.pause();
             cancelAnimationFrame(APP.rafId);
             document.getElementById('overlay').classList.remove('hidden');
+            document.getElementById('player').classList.remove('active');
+        }
+        else if (e.key === ' ' && APP.audioElement) {
+             e.preventDefault();
+             APP.audioElement.paused ? APP.audioElement.play() : APP.audioElement.pause();
+        }
+        else if (e.key === 'ArrowRight' && APP.audioElement) {
+            APP.audioElement.currentTime += 10;
+        }
+        else if (e.key === 'ArrowLeft' && APP.audioElement) {
+            APP.audioElement.currentTime -= 10;
         }
     });
 }
 
 function handleFile(file) {
     if(!file.type.startsWith('audio')) return;
-    
     const audio = new Audio();
     audio.src = URL.createObjectURL(file);
     audio.loop = true;
+    
+    // Clean Filename (basic strip extension)
+    const name = file.name.replace(/\.[^/.]+$/, "");
+    
+    // Update UI
+    document.getElementById('trackName').innerText = name;
+    
+    // Update MPRIS / Media Session
+    if ('mediaSession' in navigator) {
+        navigator.mediaSession.metadata = new MediaMetadata({ 
+            title: name, 
+            artist: 'VISU Player' 
+        });
+    }
+    
     startAudio(audio, true);
 }
 
-// Boot
 window.onload = init;
-
 </script>
 </body>
 </html>
