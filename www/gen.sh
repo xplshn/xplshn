@@ -73,3 +73,4 @@ find ../assets/ -type f -exec cp {} ./static/assets/ \;
 # Build with Hugo
 hugo
 cp ../LICENSE* ./pub
+cp ../HTMLs/*.html ./pub
