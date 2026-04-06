@@ -1,0 +1,2632 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EDIT</title>
+<style>
+/* --- design tokens --- */
+:root {
+  --font-mono: 'Courier New', Courier, monospace;
+  --font-serif: 'Times New Roman', Times, serif;
+  --col-w: 74ch;
+  --transition: 120ms linear;
+}
+
+[data-theme="terminus"] {
+  --bg:#0a0a0a; --bg2:#111111; --bg3:#1a1a1a; --bg4:#222222;
+  --border:#333333; --border2:#444444;
+  --text:#d4d4d4; --text2:#888888; --text3:#555555;
+  --accent:#c8a96e;
+}
+
+[data-theme="broadsheet"] {
+  --bg:#f5f0e8; --bg2:#ede8dc; --bg3:#e0d9cc; --bg4:#d0c9bc;
+  --border:#b8b0a0; --border2:#9a9088;
+  --text:#1a1410; --text2:#5a5248; --text3:#8a8278;
+  --accent:#8b2020;
+}
+
+/* --- reset and base --- */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; }
+body {
+  background: var(--bg); color: var(--text);
+  font-family: var(--font-mono); font-size: 13px; line-height: 1.5;
+}
+
+/* --- top-level grid: toolbar row + workspace --- */
+#app                  { display: grid; grid-template-rows: 36px 1fr; height: 100vh; }
+#toolbar              { display: flex; align-items: center; background: var(--bg2); border-bottom: 1px solid var(--border); overflow: hidden; flex-shrink: 0; }
+#workspace            { display: grid; overflow: hidden; }
+#workspace.mode-split   { grid-template-columns: 1fr 1fr; }
+#workspace.mode-editor  { grid-template-columns: 1fr 0; }
+#workspace.mode-preview { grid-template-columns: 0 1fr; }
+#workspace.mode-wysiwyg { grid-template-columns: 0 1fr; }
+
+/* --- toolbar widgets --- */
+.tb-group { display: flex; align-items: center; border-right: 1px solid var(--border); height: 36px; }
+.tb-btn {
+  background: transparent; border: none; color: var(--text2); cursor: pointer;
+  font-family: var(--font-mono); font-size: 11px; height: 36px; padding: 0 10px;
+  letter-spacing: 0.05em; text-transform: uppercase; white-space: nowrap;
+  transition: background var(--transition), color var(--transition);
+}
+.tb-btn:hover  { background: var(--bg3); color: var(--text); }
+.tb-btn.active { background: var(--bg3); color: var(--accent); }
+.tb-btn.wysiwyg-on { background: var(--accent); color: var(--bg); font-weight: bold; }
+.tb-btn.wysiwyg-on:hover { opacity: 0.88; }
+.tb-spacer { flex: 1; }
+.tb-select {
+  background: var(--bg2); border: none; border-left: 1px solid var(--border);
+  color: var(--text2); cursor: pointer; font-family: var(--font-mono); font-size: 11px;
+  height: 36px; padding: 0 10px; text-transform: uppercase; letter-spacing: 0.05em; outline: none;
+}
+.tb-select:hover { background: var(--bg3); color: var(--text); }
+.tb-label { padding: 0 10px; color: var(--text3); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; white-space: nowrap; }
+
+/* --- source editor pane --- */
+#editor-pane  { display: flex; flex-direction: column; overflow: hidden; border-right: 1px solid var(--border); }
+#editor-inner { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+#editor {
+  flex: 1; resize: none; background: var(--bg); color: var(--text); border: none; outline: none;
+  font-family: var(--font-mono); font-size: 13px; line-height: 1.7;
+  padding: 24px 32px; overflow-y: auto; tab-size: 2; white-space: pre-wrap; word-wrap: break-word;
+}
+#editor::selection { background: var(--accent); color: var(--bg); }
+.editor-statusbar {
+  height: 22px; display: flex; align-items: center; gap: 16px;
+  padding: 0 12px; background: var(--bg2); border-top: 1px solid var(--border);
+  font-size: 10px; color: var(--text3); letter-spacing: 0.05em;
+}
+
+/* --- inline format toolbar --- */
+#fmt-bar {
+  display: flex; align-items: center; gap: 1px; padding: 4px 8px;
+  background: var(--bg2); border-bottom: 1px solid var(--border); flex-wrap: wrap;
+}
+.fmt-btn {
+  background: transparent; border: 1px solid transparent; border-radius: 2px;
+  color: var(--text2); cursor: pointer; font-family: var(--font-mono); font-size: 11px;
+  padding: 2px 7px; line-height: 18px; white-space: nowrap;
+  transition: background var(--transition), color var(--transition);
+}
+.fmt-btn:hover  { background: var(--bg3); border-color: var(--border); color: var(--text); }
+.fmt-btn.active { background: var(--bg4); border-color: var(--accent); color: var(--accent); }
+.fmt-sep { width: 1px; height: 16px; background: var(--border); margin: 0 3px; flex-shrink: 0; }
+
+/* --- preview pane --- */
+#preview-pane {
+  overflow-y: auto; background: var(--preview-bg); padding: 40px 48px; position: relative;
+}
+
+/* --- WYSIWYG mode banner --- */
+#wysiwyg-banner {
+  display: none; position: sticky; top: -40px; z-index: 10;
+  background: var(--accent); color: var(--bg);
+  font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase;
+  padding: 5px 12px; margin: -40px -48px 24px; text-align: center; cursor: default;
+}
+body.wysiwyg-mode #wysiwyg-banner { display: block; }
+
+/* --- cover page wrapper --- */
+#doc-cover {
+  display: none; margin-bottom: 3em; padding-bottom: 3em;
+  border-bottom: 2px solid var(--preview-border);
+}
+#doc-cover.visible { display: block; }
+
+/* --- outer bordered box matching quixotist/werx print layout --- */
+#doc-cover .cover-bunker-wrapper {
+  border: 2px solid var(--preview-fg);
+  display: flex; flex-direction: column;
+  padding: 2em; min-height: 60vh; box-sizing: border-box;
+}
+
+#preview-inner {
+  max-width: var(--col-w); margin: 0 auto;
+  color: var(--preview-fg); font-family: var(--font-serif); font-size: 15px; line-height: 1.7;
+  outline: none;
+}
+
+/* --- WYSIWYG editable element rings --- */
+body.wysiwyg-mode #preview-inner > *:not(.wy-add-row) {
+  outline: 1px solid transparent; outline-offset: 3px; transition: outline-color 80ms;
+}
+body.wysiwyg-mode #preview-inner > *:not(.wy-add-row):hover    { outline-color: color-mix(in srgb, var(--accent) 35%, transparent); }
+body.wysiwyg-mode #preview-inner > *:not(.wy-add-row):focus-within { outline-color: var(--accent); outline-width: 1px; }
+body.wysiwyg-mode [contenteditable]:focus { outline: none; }
+body.wysiwyg-mode td, body.wysiwyg-mode th { cursor: text; }
+body.wysiwyg-mode td:focus, body.wysiwyg-mode th:focus { outline: 1px solid var(--accent); outline-offset: -1px; }
+
+/* --- WYSIWYG inline "+" add-list-item button --- */
+.wy-add-li {
+  display: none; position: absolute; right: -26px; top: 50%; transform: translateY(-50%);
+  background: var(--bg3); border: 1px solid var(--border2); color: var(--accent);
+  cursor: pointer; font-family: var(--font-mono); font-size: 13px; line-height: 1;
+  padding: 0 5px; width: 20px; text-align: center;
+}
+body.wysiwyg-mode li { position: relative; }
+body.wysiwyg-mode li:hover .wy-add-li { display: block; }
+
+/* --- WYSIWYG "add row" button appended after tables --- */
+.wy-add-row {
+  display: none; width: 100%; margin-top: 2px;
+  background: var(--bg3); border: 1px solid var(--border2); color: var(--accent);
+  cursor: pointer; font-family: var(--font-mono); font-size: 10px;
+  letter-spacing: 0.1em; padding: 4px; text-align: center; text-transform: uppercase;
+}
+body.wysiwyg-mode .wy-add-row { display: block; }
+
+/* --- preview typography defaults (overridden per-theme) --- */
+#preview-inner h1,#preview-inner h2,#preview-inner h3,
+#preview-inner h4,#preview-inner h5,#preview-inner h6 {
+  font-family: var(--font-mono); font-weight: bold;
+  margin: 1.5em 0 0.5em; line-height: 1.3; color: var(--preview-fg);
+}
+#preview-inner h1  { font-size: 2em; border-bottom: 2px solid var(--preview-border); padding-bottom: 0.3em; }
+#preview-inner h2  { font-size: 1.4em; border-bottom: 1px solid var(--preview-border); padding-bottom: 0.2em; }
+#preview-inner h3  { font-size: 1.15em; }
+#preview-inner p   { margin: 0.8em 0; }
+#preview-inner a   { color: var(--preview-link); text-underline-offset: 2px; }
+#preview-inner ul, #preview-inner ol { margin: 0.8em 0; padding-left: 2em; }
+#preview-inner li  { margin: 0.3em 0; }
+#preview-inner blockquote { margin: 1em 0; padding: 0.5em 1em; border-left: 3px solid var(--preview-border); color: var(--text2); font-style: italic; }
+#preview-inner code { font-family: var(--font-mono); font-size: 0.85em; background: rgba(128,128,128,0.12); padding: 1px 5px; border-radius: 2px; }
+#preview-inner pre { background: rgba(0,0,0,0.08); border: 1px solid var(--preview-border); padding: 14px 18px; overflow-x: auto; margin: 1em 0; }
+#preview-inner pre code { background: none; padding: 0; }
+#preview-inner table { width: 100%; border-collapse: collapse; margin: 1em 0; font-family: var(--font-mono); font-size: 0.88em; }
+#preview-inner th, #preview-inner td { border: 1px solid var(--preview-border); padding: 6px 12px; text-align: left; }
+#preview-inner th  { background: rgba(128,128,128,0.1); font-weight: bold; }
+#preview-inner img { max-width: 100%; height: auto; margin: 1em 0; display: inline-block; }
+#preview-inner hr  { border: none; border-top: 1px solid var(--preview-border); margin: 2em 0; }
+#preview-inner figure { margin: 1em 0; }
+#preview-inner figcaption { font-size: 0.85em; color: var(--text2); font-style: italic; text-align: center; margin-top: 0.25em; }
+
+/* --- cover page styles: shared layout patterns --- */
+.cover-default {
+  flex: 1; display: flex; flex-direction: column; justify-content: space-between;
+  font-family: var(--font-serif);
+}
+.cover-default .cover-top h1 { font-size: 2.5em; font-family: var(--font-serif); font-weight: bold; margin: 0 0 0.5em; color: var(--preview-fg); }
+.cover-default .cover-top .subtitle { font-size: 1.2em; color: var(--text2); margin: 0 0 1em; }
+.cover-default .cover-top .abstract { font-size: 0.9em; line-height: 1.6; padding: 1em 1.5em; border-left: 3px solid var(--preview-border); color: var(--text2); margin: 1.5em 0; font-style: italic; }
+.cover-default .cover-meta { border-top: 2px solid var(--preview-fg); padding-top: 1em; display: flex; justify-content: space-between; align-items: flex-end; font-size: 0.85em; margin-top: auto; }
+.cover-default .cover-meta-label { font-size: 0.7em; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text3); margin-bottom: 0.2em; font-family: var(--font-mono); }
+.cover-default .cover-meta-val { font-weight: bold; font-family: var(--font-mono); }
+
+.cover-sleek {
+  flex: 1; display: flex; flex-direction: column; justify-content: space-between;
+  font-family: var(--font-mono);
+}
+.cover-sleek .cover-top { border-left: 6px solid var(--accent); padding-left: 1em; }
+.cover-sleek .cover-top h1 { font-size: 2em; text-transform: uppercase; letter-spacing: -0.02em; margin: 0 0 0.4em; color: var(--preview-fg); }
+.cover-sleek .cover-top .accent-bar { height: 3px; width: 60px; background: var(--accent); margin: 0.5em 0 1em; }
+.cover-sleek .cover-top .subtitle { font-size: 1em; color: var(--text2); margin: 0 0 1em; }
+.cover-sleek .cover-top .abstract { font-size: 0.85em; border: 1px solid var(--preview-border); padding: 1em; margin: 1em 0; background: rgba(128,128,128,0.04); }
+.cover-sleek .cover-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 1em; border-top: 2px solid var(--preview-fg); padding-top: 1em; font-size: 0.8em; margin-top: auto; }
+.cover-sleek .cover-meta-label { font-size: 0.7em; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text3); margin-bottom: 0.2em; }
+.cover-sleek .cover-meta-val { font-weight: bold; }
+
+.cover-minimal {
+  flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center;
+  text-align: center; font-family: var(--font-serif);
+}
+.cover-minimal h1 { font-size: 3em; margin: 0 0 1em; color: var(--preview-fg); }
+.cover-minimal .subtitle { font-size: 1.2em; color: var(--text2); margin: 0 0 0.5em; }
+.cover-minimal .cover-meta { font-size: 0.85em; color: var(--text3); font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.1em; margin-top: 2em; }
+
+.cover-classic {
+  flex: 1; display: flex; flex-direction: column; justify-content: flex-start;
+  font-family: var(--font-serif);
+}
+.cover-classic h1 { font-size: 2.5em; margin: 0 0 2em; color: var(--preview-fg); text-align: left; }
+.cover-classic .abstract { font-size: 0.9em; border-top: 1px solid var(--preview-border); border-bottom: 1px solid var(--preview-border); padding: 1em 0; margin: 1em 0; font-style: italic; line-height: 1.7; }
+.cover-classic .cover-meta { margin-top: auto; font-size: 0.85em; font-family: var(--font-mono); }
+.cover-classic .cover-meta-label { color: var(--text3); font-size: 0.75em; text-transform: uppercase; letter-spacing: 0.08em; }
+
+.cover-modern {
+  flex: 1; display: flex; flex-direction: column; justify-content: space-between;
+  font-family: var(--font-mono); border-left: 10px solid var(--preview-fg);
+  padding-left: 1.5em;
+}
+.cover-modern h1 { font-size: 2em; text-transform: uppercase; letter-spacing: 0.05em; color: var(--preview-fg); margin: 0 0 0.5em; }
+.cover-modern .subtitle { font-size: 1em; color: var(--text2); }
+.cover-modern .abstract { font-size: 0.85em; padding: 1em; background: rgba(128,128,128,0.06); margin: 1em 0; border-right: 3px solid var(--accent); }
+.cover-modern .cover-meta { display: flex; gap: 2em; font-size: 0.8em; border-top: 1px solid var(--preview-border); padding-top: 0.8em; margin-top: auto; }
+.cover-modern .cover-meta-label { text-transform: uppercase; letter-spacing: 0.08em; color: var(--text3); font-size: 0.7em; }
+
+/* --- WERX theme: faithful port from werx/static/css/style.css
+   --wx-super   = super-accent    --wx-supertxt = super-text
+   --wx-mid     = mid-accent      --wx-midtxt   = mid-text
+   --wx-accent  = text-accent     --wx-hdr      = header-border
+   --wx-side    = sidebar-border  --wx-bg       = bg-color
+   --wx-fg      = fg-color
+--- */
+#preview-pane.theme-werx { background: var(--wx-bg, #ffffff); }
+.theme-werx #preview-inner {
+  font-family: Helvetica, Verdana, Arial, 'Liberation Sans', FreeSans, sans-serif;
+  font-size: 84%; color: var(--wx-fg, #000000);
+}
+.theme-werx #preview-inner a { color: var(--wx-accent, #0066cc); text-decoration: none; }
+.theme-werx #preview-inner a:hover { text-decoration: underline; }
+.theme-werx #preview-inner h1,
+.theme-werx #preview-inner h2 {
+  color: var(--wx-accent, #0066cc); font-weight: bold;
+  border-bottom: 2px solid var(--wx-accent, #0066cc);
+  margin: 2em 0 0 0; font-family: inherit;
+}
+.theme-werx #preview-inner h3,
+.theme-werx #preview-inner h4,
+.theme-werx #preview-inner h5,
+.theme-werx #preview-inner h6 {
+  color: var(--wx-accent, #0066cc); font-weight: bold; margin: 2em 0 0 0;
+}
+.theme-werx #preview-inner table { border: 1px solid rgba(128,128,128,0.5); width: 100%; border-collapse: collapse; }
+.theme-werx #preview-inner th { background: var(--wx-super, #6487dc); color: var(--wx-supertxt, #ffffff); padding: 6px 12px; text-align: left; }
+.theme-werx #preview-inner td { padding: 6px 12px; }
+.theme-werx #preview-inner tr:nth-child(odd) { background: rgba(128,128,128,0.1); }
+.theme-werx #preview-inner blockquote { border-left: 3px solid var(--wx-accent, #0066cc); padding: .5em 1em; opacity: .85; }
+.theme-werx #preview-inner code { background: rgba(128,128,128,.1); font-size: .85em; padding: 1px 4px; }
+.theme-werx #preview-inner pre  { background: rgba(128,128,128,.07); border: 1px solid rgba(128,128,128,.25); padding: 14px 18px; overflow-x: auto; }
+
+/* --- Quixotist theme: faithful port from quixotist/static/css/quixotist.css
+   --qx-bg      = bg-color        --qx-fg      = fg-color
+   --qx-win     = window-bg       --qx-border  = border-color
+   --qx-accent  = accent-color    --qx-shadow  = shadow
+--- */
+#preview-pane.theme-quixotist {
+  background-color: var(--qx-bg, #f4f4f6);
+  background-image:
+    linear-gradient(45deg, #e5e7eb 25%, transparent 25%),
+    linear-gradient(-45deg, #e5e7eb 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #e5e7eb 75%),
+    linear-gradient(-45deg, transparent 75%, #e5e7eb 75%);
+  background-size: 20px 20px;
+  background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+}
+.theme-quixotist #preview-inner {
+  font-family: 'JetBrains Mono', 'Courier New', monospace; font-size: 13px;
+  color: var(--qx-fg, #2b2b2b);
+}
+.theme-quixotist #preview-inner h1 {
+  font-size: 2rem; font-weight: bold; text-transform: uppercase; letter-spacing: -1px;
+  border-bottom: 2px solid var(--qx-accent, #ffcc00); margin-bottom: 1rem;
+}
+.theme-quixotist #preview-inner h2 {
+  font-size: .875rem; text-transform: uppercase;
+  border-bottom: 2px solid var(--qx-accent, #ffcc00);
+  display: inline-block; margin-bottom: 0.75rem;
+}
+.theme-quixotist #preview-inner h3,
+.theme-quixotist #preview-inner h4,
+.theme-quixotist #preview-inner h5,
+.theme-quixotist #preview-inner h6 {
+  font-size: 14px; text-transform: uppercase; margin-bottom: 0.5rem;
+}
+.theme-quixotist #preview-inner p { margin-bottom: 1em; line-height: 1.6; font-size: 0.9rem; }
+.theme-quixotist #preview-inner ul { list-style: square; padding-left: 1.2rem; font-size: 0.9rem; }
+.theme-quixotist #preview-inner a { text-decoration: underline; text-decoration-thickness: 2px; text-decoration-color: var(--qx-accent, #ffcc00); color: inherit; }
+.theme-quixotist #preview-inner a:hover { background-color: var(--qx-accent, #ffcc00); color: black; }
+.theme-quixotist #preview-inner .bunker-window {
+  background: var(--qx-win, #ffffff);
+  border: 2px solid var(--qx-border, #222222);
+  box-shadow: 4px 4px 0px 0px rgba(0,0,0,1);
+  padding: 1rem; margin-bottom: 1.5rem;
+}
+.theme-quixotist #preview-inner .post { border-left: 3px solid var(--qx-border, #222222); padding-left: 1.5rem; margin-bottom: 2rem; }
+.theme-quixotist #preview-inner .accent-bar { height: 4px; background: var(--qx-accent, #ffcc00); margin-bottom: 1rem; }
+.theme-quixotist #preview-inner h3.section-header {
+  font-size: 14px; text-transform: uppercase;
+  border-bottom: 2px solid var(--qx-accent, #ffcc00);
+  display: inline-block; margin-bottom: 0.75rem; margin-top: 1.5rem;
+}
+.theme-quixotist #preview-inner table { width: 100%; border-collapse: collapse; font-family: inherit; font-size: .88em; }
+.theme-quixotist #preview-inner th { background: var(--qx-border, #222222); color: #ffffff; padding: 6px 12px; text-align: left; }
+.theme-quixotist #preview-inner td { border: 1px solid var(--qx-border, #222222); padding: 6px 12px; }
+.theme-quixotist #preview-inner code { font-family: 'JetBrains Mono','Courier New',monospace; font-size: 12px; background: #f8f8f8; border: 1px solid #ddd; padding: 1px 4px; }
+.theme-quixotist #preview-inner pre  { background: #f8f8f8; border: 1px solid #ddd; padding: 1rem; font-size: 12px; overflow-x: auto; margin: 1rem 0; }
+
+/* --- settings panel overlay --- */
+#panel-overlay { display: none; position: fixed; inset: 0; z-index: 100; background: rgba(0,0,0,0.5); }
+#panel-overlay.active { display: block; }
+.panel { position: fixed; top: 0; right: 0; width: 360px; height: 100vh; background: var(--bg2); border-left: 1px solid var(--border); z-index: 101; display: flex; flex-direction: column; transform: translateX(100%); transition: transform 200ms ease; }
+.panel.active { transform: translateX(0); }
+.panel-header { display: flex; align-items: center; justify-content: space-between; padding: 0 16px; height: 36px; border-bottom: 1px solid var(--border); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text2); flex-shrink: 0; }
+.panel-close  { background: none; border: none; color: var(--text2); cursor: pointer; font-family: var(--font-mono); font-size: 14px; padding: 4px 6px; }
+.panel-close:hover { color: var(--text); }
+.panel-body   { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 16px; }
+.s-section    { display: flex; flex-direction: column; gap: 8px; }
+.s-title      { font-size: 9px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--text3); padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+.s-row        { display: flex; align-items: center; gap: 8px; }
+.s-label      { font-size: 11px; color: var(--text2); flex: 0 0 120px; }
+.s-input      { flex: 1; background: var(--bg3); border: 1px solid var(--border); color: var(--text); font-family: var(--font-mono); font-size: 11px; padding: 4px 8px; outline: none; }
+.s-input:focus { border-color: var(--accent); }
+.s-color      { width: 28px; height: 20px; border: 1px solid var(--border); cursor: pointer; padding: 0; flex-shrink: 0; }
+.s-select     { flex: 1; background: var(--bg3); border: 1px solid var(--border); color: var(--text); font-family: var(--font-mono); font-size: 11px; padding: 4px 8px; outline: none; cursor: pointer; }
+.theme-grp    { display: flex; gap: 4px; flex-wrap: wrap; }
+.theme-btn    { flex: 1; background: var(--bg3); border: 1px solid var(--border); color: var(--text2); cursor: pointer; font-family: var(--font-mono); font-size: 10px; padding: 6px; text-align: center; letter-spacing: 0.05em; text-transform: uppercase; white-space: nowrap; }
+.theme-btn:hover { border-color: var(--accent); }
+.theme-btn.active { border-color: var(--accent); color: var(--accent); background: var(--bg4); }
+
+/* --- panel tab strip --- */
+.panel-tabs { display: flex; border-bottom: 1px solid var(--border); flex-shrink: 0; background: var(--bg2); }
+.ptab {
+  flex: 1; background: transparent; border: none; border-bottom: 2px solid transparent;
+  color: var(--text3); cursor: pointer; font-family: var(--font-mono); font-size: 10px;
+  height: 32px; letter-spacing: 0.08em; text-transform: uppercase;
+  transition: color var(--transition), border-color var(--transition);
+}
+.ptab:hover  { color: var(--text2); }
+.ptab.active { border-bottom-color: var(--accent); color: var(--accent); }
+
+/* --- modal dialog --- */
+#modal-overlay { display: none; position: fixed; inset: 0; z-index: 200; background: rgba(0,0,0,0.6); align-items: center; justify-content: center; }
+#modal-overlay.active { display: flex; }
+.modal { background: var(--bg2); border: 1px solid var(--border2); width: 420px; max-width: 95vw; }
+.modal-header { display: flex; align-items: center; justify-content: space-between; padding: 0 16px; height: 36px; border-bottom: 1px solid var(--border); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text2); }
+.modal-body   { padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+.modal-row    { display: flex; flex-direction: column; gap: 4px; }
+.modal-lbl    { font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text3); }
+.modal-inp    { background: var(--bg3); border: 1px solid var(--border); color: var(--text); font-family: var(--font-mono); font-size: 12px; padding: 6px 10px; outline: none; width: 100%; }
+.modal-inp:focus { border-color: var(--accent); }
+.modal-footer { display: flex; gap: 4px; padding: 12px 16px; border-top: 1px solid var(--border); justify-content: flex-end; }
+.btn   { background: var(--bg3); border: 1px solid var(--border); color: var(--text2); cursor: pointer; font-family: var(--font-mono); font-size: 11px; padding: 6px 16px; text-transform: uppercase; letter-spacing: 0.05em; transition: all var(--transition); }
+.btn:hover { border-color: var(--accent); color: var(--text); }
+.btn-p { border-color: var(--accent); color: var(--accent); }
+.btn-p:hover { background: var(--accent); color: var(--bg); }
+
+/* --- scrollbars --- */
+::-webkit-scrollbar       { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border2); }
+::-webkit-scrollbar-thumb:hover { background: var(--text3); }
+
+/* --- print: hide editor chrome, let preview flow --- */
+@media print {
+  #toolbar, #editor-pane, #wysiwyg-banner { display: none !important; }
+  #workspace { display: block !important; }
+  #preview-pane { overflow: visible !important; padding: 0 !important; }
+  #preview-inner { max-width: 100% !important; }
+  article tr, article td { page-break-inside: avoid; }
+  article thead { display: table-header-group; }
+  article tfoot { display: table-footer-group; }
+  article h1, article h2, article h3,
+  article h4, article h5, article h6 { page-break-after: avoid; page-break-inside: avoid; }
+  .page-break { page-break-before: always; }
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+
+  /* --- cover page takes a dedicated named page --- */
+  @page cover { margin: 1cm; }
+
+  #doc-cover {
+    display: block !important;
+    page: cover;
+    page-break-after: always !important;
+    break-after: page !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+  }
+
+  /* --- cover border box fills the named page exactly --- */
+  #doc-cover .cover-bunker-wrapper {
+    border: 4px solid black !important;
+    display: flex !important;
+    flex-direction: column !important;
+    padding: 2cm !important;
+    background: white !important;
+    height: calc(297mm - 2cm) !important;
+    min-height: 0 !important;
+    box-sizing: border-box !important;
+    position: relative !important;
+    overflow: hidden !important;
+  }
+
+  #doc-cover .cover-default .cover-meta,
+  #doc-cover .cover-sleek  .cover-meta,
+  #doc-cover .cover-classic .cover-meta,
+  #doc-cover .cover-modern  .cover-meta { margin-top: auto !important; }
+
+  #doc-cover .cover-default,
+  #doc-cover .cover-sleek,
+  #doc-cover .cover-minimal,
+  #doc-cover .cover-classic,
+  #doc-cover .cover-modern  { height: 100% !important; flex: 1 !important; }
+}
+</style>
+</head>
+<body data-theme="terminus">
+<div id="app">
+
+  <!-- TOOLBAR -->
+  <div id="toolbar">
+    <div class="tb-group"><span class="tb-label">EDIT</span></div>
+    <div class="tb-group">
+      <button class="tb-btn active" id="btn-split">SPLIT</button>
+      <button class="tb-btn" id="btn-src">SRC</button>
+      <button class="tb-btn" id="btn-view">VIEW</button>
+    </div>
+    <div class="tb-group">
+      <button class="tb-btn" id="btn-wysiwyg" title="Toggle visual editing (W)">WYSIWYG</button>
+    </div>
+    <div class="tb-group">
+      <select class="tb-select" id="markup-select">
+        <option value="djot">DJOT</option>
+        <option value="markdown">MD</option>
+      </select>
+    </div>
+    <div class="tb-group"><button class="tb-btn" id="btn-new">NEW</button></div>
+    <div class="tb-spacer"></div>
+    <div class="tb-group"><button class="tb-btn" id="btn-settings">SETTINGS</button></div>
+    <div class="tb-group">
+      <button class="tb-btn" id="btn-export-html">EXPORT HTML</button>
+      <button class="tb-btn" id="btn-export-pdf">EXPORT PDF</button>
+    </div>
+  </div>
+
+  <!-- WORKSPACE -->
+  <div id="workspace" class="mode-split">
+
+    <!-- SOURCE EDITOR -->
+    <div id="editor-pane">
+      <div id="fmt-bar">
+        <button class="fmt-btn" data-fmt="bold">B</button>
+        <button class="fmt-btn" data-fmt="italic">I</button>
+        <button class="fmt-btn" data-fmt="code">`</button>
+        <div class="fmt-sep"></div>
+        <button class="fmt-btn" data-fmt="h1">H1</button>
+        <button class="fmt-btn" data-fmt="h2">H2</button>
+        <button class="fmt-btn" data-fmt="h3">H3</button>
+        <div class="fmt-sep"></div>
+        <button class="fmt-btn" data-fmt="ul">UL</button>
+        <button class="fmt-btn" data-fmt="ol">OL</button>
+        <button class="fmt-btn" data-fmt="bq">BQ</button>
+        <button class="fmt-btn" data-fmt="cb">```</button>
+        <button class="fmt-btn" data-fmt="hr">HR</button>
+        <div class="fmt-sep"></div>
+        <button class="fmt-btn" id="fmt-link">LINK</button>
+        <button class="fmt-btn" id="fmt-img">IMG</button>
+        <button class="fmt-btn" id="fmt-table">TABLE</button>
+        <button class="fmt-btn" id="fmt-cover">COVER</button>
+        <button class="fmt-btn" id="fmt-frontmatter">FM</button>
+      </div>
+      <div id="editor-inner">
+        <textarea id="editor" spellcheck="true" placeholder="Start writing...&#10;&#10;Use the FM button to insert frontmatter, or COVER for a cover page block."></textarea>
+      </div>
+      <div class="editor-statusbar">
+        <span id="s-lang">DJOT</span>
+        <span id="s-words">0 words</span>
+        <span id="s-chars">0 chars</span>
+        <span id="s-lines">0 lines</span>
+        <span id="s-pos">1:1</span>
+        <span id="s-last-export" style="margin-left:auto;color:var(--text3);display:none;" title="Last exported">EXPORTED --</span>
+        <span id="s-wy" style="color:var(--accent);display:none;">[ VISUAL ]</span>
+      </div>
+    </div>
+
+    <!-- PREVIEW / WYSIWYG -->
+    <div id="preview-pane">
+      <div id="wysiwyg-banner">VISUAL EDITING ACTIVE -- edits sync to source</div>
+      <div style="max-width:var(--col-w);margin:0 auto;">
+        <div id="doc-cover"></div>
+      </div>
+      <div id="preview-inner"></div>
+    </div>
+  </div>
+</div>
+
+<!-- SETTINGS PANEL -->
+<div id="panel-overlay"></div>
+<div class="panel" id="settings-panel">
+  <div class="panel-header"><span>Settings</span><button class="panel-close" id="s-close">x</button></div>
+  <div class="panel-tabs">
+    <button class="ptab active" data-ptab="general">GENERAL</button>
+    <button class="ptab" data-ptab="cover">COVER</button>
+    <button class="ptab" data-ptab="style">STYLE</button>
+    <button class="ptab" data-ptab="css">CSS</button>
+  </div>
+
+  <!-- GENERAL TAB -->
+  <div class="panel-body" id="ptab-general">
+    <div class="s-section">
+      <div class="s-title">Editor Theme</div>
+      <div class="theme-grp">
+        <button class="theme-btn active" data-theme="terminus">TERMINUS</button>
+        <button class="theme-btn" data-theme="broadsheet">BROADSHEET</button>
+      </div>
+    </div>
+    <div class="s-section">
+      <div class="s-title">Document Theme</div>
+      <div class="theme-grp">
+        <button class="theme-btn active" data-doc-theme="default">DEFAULT</button>
+        <button class="theme-btn" data-doc-theme="werx">WERX</button>
+        <button class="theme-btn" data-doc-theme="quixotist">QUIXOTIST</button>
+      </div>
+    </div>
+    <div class="s-section">
+      <div class="s-title">Document</div>
+      <div class="s-row"><span class="s-label">Title</span><input class="s-input" id="si-title" type="text" placeholder="Untitled"></div>
+      <div class="s-row"><span class="s-label">Author</span><input class="s-input" id="si-author" type="text"></div>
+      <div class="s-row"><span class="s-label">Affiliation</span><input class="s-input" id="si-affiliation" type="text"></div>
+      <div class="s-row"><span class="s-label">Version</span><input class="s-input" id="si-version" type="text"></div>
+      <div class="s-row"><span class="s-label">License</span><input class="s-input" id="si-license" type="text"></div>
+      <div class="s-row"><span class="s-label">Column width</span><input class="s-input" id="si-colw" type="text" value="65ch"></div>
+    </div>
+    <div class="s-section">
+      <div class="s-title">Typography</div>
+      <div class="s-row"><span class="s-label">Body font</span><input class="s-input" id="si-bfont" type="text" value="Times New Roman, Times, serif"></div>
+      <div class="s-row"><span class="s-label">Heading font</span><input class="s-input" id="si-hfont" type="text" value="Courier New, Courier, monospace"></div>
+      <div class="s-row"><span class="s-label">Font size</span><input class="s-input" id="si-fsize" type="text" value="1rem"></div>
+      <div class="s-row"><span class="s-label">Line height</span><input class="s-input" id="si-lh" type="text" value="1.7"></div>
+    </div>
+    <div class="s-section">
+      <div class="s-title">Images</div>
+      <div class="s-row">
+        <span class="s-label">Max width</span>
+        <input type="range" id="si-imgmax-range" min="10" max="100" value="100" style="flex:1;accent-color:var(--accent);cursor:pointer;">
+        <input class="s-input" id="si-imgmax" type="text" value="100%" style="width:54px;flex:none;text-align:center;">
+      </div>
+      <div class="s-row">
+        <span class="s-label">Alignment</span>
+        <select class="s-select" id="si-imgalign">
+          <option value="">default</option>
+          <option value="left">left</option>
+          <option value="center">center</option>
+          <option value="right">right</option>
+        </select>
+      </div>
+    </div>
+    <div class="s-section">
+      <div class="s-title">Colors</div>
+      <div class="s-row"><span class="s-label">Background</span><input type="color" class="s-color" id="sc-bg" value="#0d0d0d"><input class="s-input" id="sh-bg" type="text" value="#0d0d0d" style="flex:1"></div>
+      <div class="s-row"><span class="s-label">Foreground</span><input type="color" class="s-color" id="sc-fg" value="#cccccc"><input class="s-input" id="sh-fg" type="text" value="#cccccc" style="flex:1"></div>
+      <div class="s-row"><span class="s-label">Link color</span><input type="color" class="s-color" id="sc-lk" value="#c8a96e"><input class="s-input" id="sh-lk" type="text" value="#c8a96e" style="flex:1"></div>
+      <div class="s-row"><span class="s-label">Border color</span><input type="color" class="s-color" id="sc-br" value="#2a2a2a"><input class="s-input" id="sh-br" type="text" value="#2a2a2a" style="flex:1"></div>
+      <div class="s-row"><span class="s-label">Accent color</span><input type="color" class="s-color" id="sc-ac" value="#c8a96e"><input class="s-input" id="sh-ac" type="text" value="#c8a96e" style="flex:1"></div>
+    </div>
+    <div class="s-section">
+      <div class="s-title">PDF / Print</div>
+      <div class="s-row"><span class="s-label">Margins</span><input class="s-input" id="si-margins" type="text" value="2cm"></div>
+      <div class="s-row"><span class="s-label">Page size</span>
+        <select class="s-select" id="si-pagesize">
+          <option value="A4">A4</option>
+          <option value="letter">Letter</option>
+          <option value="legal">Legal</option>
+        </select>
+      </div>
+    </div>
+    <div class="s-section">
+      <div class="s-title">Markup</div>
+      <div class="s-row">
+        <span class="s-label">Language</span>
+        <select class="s-select" id="si-markup">
+          <option value="djot">DJOT</option>
+          <option value="markdown">Markdown</option>
+        </select>
+      </div>
+    </div>
+    <div class="s-section">
+      <div class="s-title">View Mode</div>
+      <div class="theme-grp">
+        <button class="theme-btn active" data-view="split">SPLIT</button>
+        <button class="theme-btn" data-view="editor">SRC</button>
+        <button class="theme-btn" data-view="preview">VIEW</button>
+      </div>
+    </div>
+    <div class="s-section">
+      <div class="s-title">Libraries</div>
+      <div style="font-size:10px;color:var(--text3);line-height:1.6;margin-bottom:4px;">
+        Libraries are cached in IndexedDB and loaded only when used. Sync fetches fresh copies from the CDN.
+      </div>
+      <button id="btn-lib-sync" class="btn" style="font-size:10px;padding:4px 10px;">SYNC LIBRARIES</button>
+      <div id="lib-sync-status" style="font-size:10px;color:var(--text3);margin-top:4px;"></div>
+    </div>
+  </div>
+
+  <!-- COVER TAB -->
+  <div class="panel-body" id="ptab-cover" style="display:none;">
+    <div class="s-section">
+      <div class="s-title">Cover Page</div>
+      <div class="s-row">
+        <span class="s-label">Enable cover</span>
+        <input type="checkbox" id="si-cover" style="accent-color:var(--accent);width:16px;height:16px;cursor:pointer;">
+      </div>
+      <div class="s-row">
+        <span class="s-label">Cover style</span>
+        <select class="s-select" id="si-coverstyle">
+          <option value="default">Default (Academic)</option>
+          <option value="sleek">Sleek (Technical)</option>
+          <option value="minimal">Minimal</option>
+          <option value="classic">Classic</option>
+          <option value="modern">Modern</option>
+        </select>
+      </div>
+      <div class="s-row"><span class="s-label">Logo URL</span><input class="s-input" id="si-logo" type="text" placeholder="https://..."></div>
+    </div>
+    <div class="s-section">
+      <div class="s-title">Abstract</div>
+      <textarea id="si-abstract" spellcheck="true" placeholder="Optional abstract or summary..." style="width:100%;min-height:100px;background:var(--bg3);border:1px solid var(--border);color:var(--text);font-family:var(--font-mono);font-size:11px;line-height:1.5;padding:8px 10px;resize:vertical;outline:none;tab-size:2;"></textarea>
+    </div>
+  </div>
+
+  <!-- STYLE TAB -->
+  <div class="panel-body" id="ptab-style" style="display:none;gap:8px;">
+
+    <!-- colour picker popup (shared) -->
+    <div id="st-picker" style="display:none;position:absolute;z-index:300;left:0;top:0;
+         background:var(--bg2);border:1px solid var(--border2);padding:10px;width:220px;gap:6px;flex-direction:column;">
+      <canvas id="st-spectrum" width="200" height="120" style="cursor:crosshair;display:block;border:1px solid var(--border);"></canvas>
+      <input type="range" id="st-hue" min="0" max="360" style="width:100%;accent-color:var(--accent);">
+      <div style="display:flex;gap:6px;align-items:center;">
+        <div id="st-preview" style="width:28px;height:28px;border:1px solid var(--border2);flex-shrink:0;border-radius:2px;"></div>
+        <input id="st-hex" type="text" maxlength="7"
+               style="flex:1;background:var(--bg3);border:1px solid var(--border);color:var(--text);
+                      font-family:var(--font-mono);font-size:11px;padding:3px 6px;outline:none;">
+      </div>
+      <div id="st-swatches" style="display:grid;grid-template-columns:repeat(8,1fr);gap:3px;"></div>
+      <div style="display:flex;gap:4px;">
+        <button id="st-pick-cancel" class="btn" style="flex:1;font-size:10px;padding:4px;">CANCEL</button>
+        <button id="st-pick-ok"     class="btn btn-p" style="flex:1;font-size:10px;padding:4px;">APPLY</button>
+      </div>
+    </div>
+
+    <!-- theme selector + actions -->
+    <div class="s-section" style="flex-shrink:0;">
+      <div class="s-title">Document Theme</div>
+      <div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap;">
+        <select id="st-theme-sel" class="s-select" style="flex:1;min-width:0;"></select>
+        <button id="st-theme-dup"  class="btn" style="font-size:10px;padding:4px 8px;" title="Duplicate this theme">DUP</button>
+        <button id="st-theme-del"  class="btn" style="font-size:10px;padding:4px 8px;" title="Delete custom theme">DEL</button>
+      </div>
+      <div style="display:flex;gap:4px;margin-top:4px;">
+        <input id="st-theme-name" class="s-input" type="text" placeholder="New theme name..." style="flex:1;">
+        <button id="st-theme-save" class="btn btn-p" style="font-size:10px;padding:4px 8px;">SAVE AS</button>
+      </div>
+    </div>
+
+    <!-- palette presets for current theme -->
+    <div class="s-section" style="flex-shrink:0;" id="st-presets-wrap">
+      <div class="s-title">Palette Preset</div>
+      <div id="st-presets" style="display:flex;gap:4px;flex-wrap:wrap;"></div>
+    </div>
+
+    <!-- per-variable color rows -->
+    <div class="s-section" style="flex:1;overflow-y:auto;min-height:0;">
+      <div class="s-title">Variables</div>
+      <div id="st-vars" style="display:flex;flex-direction:column;gap:2px;"></div>
+    </div>
+  </div>
+
+  <!-- CSS TAB -->
+  <div class="panel-body" id="ptab-css" style="display:none;">
+    <div class="s-section" style="flex:1;display:flex;flex-direction:column;gap:6px;">
+      <div class="s-title">Custom CSS <span style="font-weight:normal;text-transform:none;letter-spacing:0;color:var(--text3);font-size:9px;">&nbsp;-- injected into preview &amp; exports</span></div>
+      <textarea id="si-usercss" spellcheck="false" placeholder="/* your CSS here */&#10;#preview-inner p { text-indent: 2em; }&#10;#preview-inner img { border: 1px solid #333; }" style="flex:1;min-height:300px;background:var(--bg3);border:1px solid var(--border);color:var(--text);font-family:var(--font-mono);font-size:11px;line-height:1.6;padding:10px 12px;resize:none;outline:none;tab-size:2;"></textarea>
+      <div style="font-size:9px;color:var(--text3);line-height:1.5;">
+        Target <code style="background:var(--bg4);padding:1px 4px;">#preview-inner</code> to scope rules to the document only.<br>
+        Rules are applied live and included in all exports.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div id="modal-overlay">
+  <div class="modal">
+    <div class="modal-header"><span id="modal-title">INSERT</span><button class="panel-close" id="modal-x">x</button></div>
+    <div class="modal-body" id="modal-body"></div>
+    <div class="modal-footer">
+      <button class="btn" id="modal-cancel">CANCEL</button>
+      <button class="btn btn-p" id="modal-ok">INSERT</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+// djot is always loaded -- it is the default and primary markup language
+import { parse as djotParse, renderHTML as djotRenderHTML }
+  from 'https://cdn.jsdelivr.net/npm/@djot/djot@0.3.1/+esm';
+
+/* --- mutable editor state --- */
+let markup   = 'djot';
+let viewMode = 'split';
+let wysiwyg  = false;
+let suppressRender = false;
+
+const CFG_DEFAULTS = {
+  title:'', author:'', affiliation:'', version:'', license:'',
+  colw:'65ch',
+  bfont:'Times New Roman, Times, serif', hfont:'Courier New, Courier, monospace',
+  fsize:'1rem', lh:'1.7',
+  cbg:'#0d0d0d', cfg:'#cccccc', clk:'#c8a96e', cbr:'#2a2a2a', cac:'#c8a96e',
+  margins:'2cm', pagesize:'A4', theme:'terminus', docTheme:'default',
+  imgmax:'100%', imgalign:'', usercss:'', themeVars:{},
+  cover:false, coverStyle:'default', coverLogo:'', abstract:'',
+  markup:'djot', viewMode:'split',
+};
+let cfg = { ...CFG_DEFAULTS };
+
+/* --- DOM references used throughout --- */
+const ed    = document.getElementById('editor');
+const pi    = document.getElementById('preview-inner');
+const ws    = document.getElementById('workspace');
+const cover = document.getElementById('doc-cover');
+const wyBtn = document.getElementById('btn-wysiwyg');
+
+/* =========================================================
+   LIBRARY CACHE -- IndexedDB-backed, per-library invalidation
+   ========================================================= */
+
+// Libraries that are loaded on demand when the markup uses them.
+// esm:true means the lib is imported as an ES module; false = classic script tag.
+const LIBS = {
+  marked:   { key: 'lib-marked',   url: 'https://cdn.jsdelivr.net/npm/marked@12.0.0/marked.min.js',              esm: false },
+  mermaid:  { key: 'lib-mermaid',  url: 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs',      esm: true  },
+  chartjs:  { key: 'lib-chartjs',  url: 'https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js',         esm: false },
+  d3:       { key: 'lib-d3',       url: 'https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js',                      esm: false },
+};
+
+// Resolved module objects for ESM libs (populated by ensureLib).
+const LIB_MOD = {};
+
+// One open DB connection shared for the whole session.
+let _idb = null;
+async function idb() {
+  if (_idb) return _idb;
+  _idb = await new Promise((res, rej) => {
+    const req = indexedDB.open('editor-libs', 1);
+    req.onupgradeneeded = e => e.target.result.createObjectStore('blobs');
+    req.onsuccess = e => res(e.target.result);
+    req.onerror   = e => rej(e.target.error);
+  });
+  return _idb;
+}
+async function idbGet(key) {
+  const db = await idb();
+  return new Promise((res, rej) => {
+    const tx  = db.transaction('blobs', 'readonly');
+    const req = tx.objectStore('blobs').get(key);
+    req.onsuccess = () => res(req.result ?? null);
+    req.onerror   = () => rej(req.error);
+  });
+}
+async function idbPut(key, val) {
+  const db = await idb();
+  return new Promise((res, rej) => {
+    const tx  = db.transaction('blobs', 'readwrite');
+    const req = tx.objectStore('blobs').put(val, key);
+    req.onsuccess = () => res();
+    req.onerror   = () => rej(req.error);
+  });
+}
+async function idbDel(key) {
+  const db = await idb();
+  return new Promise((res, rej) => {
+    const tx  = db.transaction('blobs', 'readwrite');
+    const req = tx.objectStore('blobs').delete(key);
+    req.onsuccess = () => res();
+    req.onerror   = () => rej(req.error);
+  });
+}
+
+// Fetch library source from the network and persist it to IndexedDB.
+async function fetchAndCache(name) {
+  const lib  = LIBS[name];
+  const resp = await fetch(lib.url);
+  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+  const text = await resp.text();
+  await idbPut(lib.key, text);
+  return text;
+}
+
+// Execute a classic script tag whose source is an inline string.
+// Returns a promise that resolves when the script has run.
+function execScript(src) {
+  return new Promise((res, rej) => {
+    const s = document.createElement('script');
+    s.textContent = src;
+    s.onload  = res;
+    s.onerror = rej;
+    document.head.appendChild(s);
+    // Inline scripts fire synchronously, so resolve immediately.
+    res();
+  });
+}
+
+// Load a library, preferring the cached copy in IndexedDB.
+// For ESM libs the resolved module is stored in LIB_MOD[name].
+async function ensureLib(name) {
+  if (LIB_MOD[name] || window[name]) return;
+
+  const lib    = LIBS[name];
+  let   cached = await idbGet(lib.key);
+
+  if (!cached) cached = await fetchAndCache(name);
+
+  if (lib.esm) {
+    // Create a blob URL from cached source so dynamic import() can load it.
+    const blob = new Blob([cached], { type: 'application/javascript' });
+    const url  = URL.createObjectURL(blob);
+    const mod  = await import(url);
+    URL.revokeObjectURL(url);
+    LIB_MOD[name] = mod;
+    if (name === 'mermaid') {
+      window.mermaid = mod.default;
+      mermaid.initialize({ startOnLoad: false, theme: 'dark' });
+    }
+  } else {
+    // Classic script: evaluate inline so it runs in the current context.
+    const blob = new Blob([cached], { type: 'text/javascript' });
+    const url  = URL.createObjectURL(blob);
+    await new Promise((res, rej) => {
+      const s   = document.createElement('script');
+      s.src     = url;
+      s.onload  = () => { URL.revokeObjectURL(url); res(); };
+      s.onerror = () => { URL.revokeObjectURL(url); rej(); };
+      document.head.appendChild(s);
+    });
+  }
+}
+
+// Sync button: re-fetch each library from the CDN.
+// Only clears a cached entry when the fresh fetch succeeds.
+document.getElementById('btn-lib-sync').onclick = async () => {
+  const status = document.getElementById('lib-sync-status');
+  status.textContent = 'Syncing...';
+  const results = [];
+  for (const [name, lib] of Object.entries(LIBS)) {
+    try {
+      await fetchAndCache(name);
+      results.push(name + ' OK');
+    } catch (e) {
+      results.push(name + ' FAIL');
+    }
+  }
+  status.textContent = results.join('  ');
+};
+
+/* =========================================================
+   FRONTMATTER
+   ========================================================= */
+
+// Keys that can appear in the YAML-lite frontmatter block.
+const FM_KEYS = ['title','author','affiliation','version','license','abstract',
+                 'cover','cover_style','cover_logo',
+                 'doc_theme','colw','bfont','hfont','fsize','lh',
+                 'cbg','cfg','clk','cbr','cac','margins','pagesize',
+                 'imgmax','imgalign','usercss','markup','view_mode','theme_vars'];
+
+function parseFrontmatter(src) {
+  const m = src.match(/^---\n([\s\S]*?)\n---\n?/);
+  if (!m) return { meta: {}, body: src };
+  const raw  = m[1];
+  const meta = {};
+  for (const line of raw.split('\n')) {
+    const eq = line.indexOf(':');
+    if (eq < 0) continue;
+    const k = line.slice(0, eq).trim();
+    let   v = line.slice(eq + 1).trim();
+    // Strip surrounding single or double quotes.
+    if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'")))
+      v = v.slice(1, -1);
+    if (v === 'true')  v = true;
+    if (v === 'false') v = false;
+    meta[k] = v;
+  }
+  return { meta, body: src.slice(m[0].length) };
+}
+
+function generateFrontmatter() {
+  const pairs = [
+    ['title',       cfg.title       || ''],
+    ['author',      cfg.author      || ''],
+    ['affiliation', cfg.affiliation || ''],
+    ['version',     cfg.version     || ''],
+    ['license',     cfg.license     || ''],
+    ['abstract',    cfg.abstract    || ''],
+    ['cover',       cfg.cover ? 'true' : 'false'],
+    ['cover_style', cfg.coverStyle  || 'default'],
+    ['cover_logo',  cfg.coverLogo   || ''],
+    ['doc_theme',   cfg.docTheme    || 'default'],
+    ['colw',        cfg.colw        || '65ch'],
+    ['bfont',       cfg.bfont       || ''],
+    ['hfont',       cfg.hfont       || ''],
+    ['fsize',       cfg.fsize       || '1rem'],
+    ['lh',          cfg.lh          || '1.7'],
+    ['cbg',         cfg.cbg         || ''],
+    ['cfg',         cfg.cfg         || ''],
+    ['clk',         cfg.clk         || ''],
+    ['cbr',         cfg.cbr         || ''],
+    ['cac',         cfg.cac         || ''],
+    ['margins',     cfg.margins     || '2cm'],
+    ['pagesize',    cfg.pagesize    || 'A4'],
+    ['imgmax',      cfg.imgmax      || '100%'],
+    ['imgalign',    cfg.imgalign    || ''],
+    ['usercss',     cfg.usercss     || ''],
+    ['markup',      markup          || 'djot'],
+    ['view_mode',   viewMode        || 'split'],
+    ['theme_vars',  JSON.stringify(cfg.themeVars||{})],
+  ];
+  const body = pairs.map(([k, v]) => `${k}: "${String(v).replace(/"/g,'\\"')}"`).join('\n');
+  return `---\n${body}\n---\n`;
+}
+
+function applyMeta(meta) {
+  if (meta.title       !== undefined) cfg.title       = meta.title;
+  if (meta.author      !== undefined) cfg.author      = meta.author;
+  if (meta.affiliation !== undefined) cfg.affiliation = meta.affiliation;
+  if (meta.version     !== undefined) cfg.version     = meta.version;
+  if (meta.license     !== undefined) cfg.license     = meta.license;
+  if (meta.abstract    !== undefined) cfg.abstract    = meta.abstract;
+  if (meta.cover       !== undefined) cfg.cover       = meta.cover === true || meta.cover === 'true';
+  if (meta.cover_style !== undefined) cfg.coverStyle  = meta.cover_style;
+  if (meta.cover_logo  !== undefined) cfg.coverLogo   = meta.cover_logo;
+  if (meta.doc_theme   !== undefined) cfg.docTheme    = meta.doc_theme;
+  if (meta.colw        !== undefined) cfg.colw        = meta.colw;
+  if (meta.bfont       !== undefined) cfg.bfont       = meta.bfont;
+  if (meta.hfont       !== undefined) cfg.hfont       = meta.hfont;
+  if (meta.fsize       !== undefined) cfg.fsize       = meta.fsize;
+  if (meta.lh          !== undefined) cfg.lh          = meta.lh;
+  if (meta.cbg         !== undefined) cfg.cbg         = meta.cbg;
+  if (meta.cfg         !== undefined) cfg.cfg         = meta.cfg;
+  if (meta.clk         !== undefined) cfg.clk         = meta.clk;
+  if (meta.cbr         !== undefined) cfg.cbr         = meta.cbr;
+  if (meta.cac         !== undefined) cfg.cac         = meta.cac;
+  if (meta.margins     !== undefined) cfg.margins     = meta.margins;
+  if (meta.pagesize    !== undefined) cfg.pagesize    = meta.pagesize;
+  if (meta.imgmax      !== undefined) cfg.imgmax      = meta.imgmax;
+  if (meta.imgalign    !== undefined) cfg.imgalign    = meta.imgalign;
+  if (meta.usercss     !== undefined) cfg.usercss     = meta.usercss;
+  if (meta.markup      !== undefined) {
+    markup = meta.markup;
+    document.getElementById('markup-select').value = markup;
+    document.getElementById('si-markup').value     = markup;
+  }
+  if (meta.view_mode  !== undefined) { viewMode = meta.view_mode; setView(viewMode); }
+  if (meta.theme_vars !== undefined) { try { cfg.themeVars = JSON.parse(meta.theme_vars); } catch(e){} }
+}
+
+/* =========================================================
+   COVER PAGE
+   ========================================================= */
+
+function renderCover() {
+  if (!cfg.cover) { cover.className = ''; cover.innerHTML = ''; return; }
+  cover.className = 'visible';
+  const { title, author, affiliation, version, license, abstract, coverStyle, coverLogo } = cfg;
+  const date = new Date().toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' });
+
+  const logo  = coverLogo ? `<img src="${esc(coverLogo)}" alt="Logo" style="max-width:120px;max-height:80px;margin-bottom:1.5em;display:block;">` : '';
+  const absEl = abstract  ? `<div class="abstract">${esc(abstract)}</div>` : '';
+
+  const metaItems = [];
+  if (author)      metaItems.push(['Author',      author]);
+  if (affiliation) metaItems.push(['Affiliation', affiliation]);
+  metaItems.push(['Date', date]);
+  if (version)     metaItems.push(['Version',     version]);
+  if (license)     metaItems.push(['License',     license]);
+
+  const metaKV  = ([l, v]) => `<div><div class="cover-meta-label">${esc(l)}</div><div class="cover-meta-val">${esc(v)}</div></div>`;
+  const metaFlat = ([l, v]) => `${esc(l)}: ${esc(v)}`;
+  const cs = coverStyle || 'default';
+
+  let inner = '';
+  if (cs === 'minimal') {
+    inner = `<div class="cover-minimal">
+      ${logo}
+      <h1>${esc(title||'Untitled')}</h1>
+      <div class="cover-meta">${metaItems.map(metaFlat).join(' &middot; ')}</div>
+    </div>`;
+  } else if (cs === 'sleek') {
+    inner = `<div class="cover-sleek">
+      <div class="cover-top">${logo}
+        <h1>${esc(title||'Untitled')}</h1>
+        <div class="accent-bar"></div>
+        ${absEl}
+      </div>
+      <div class="cover-meta">${metaItems.map(metaKV).join('')}</div>
+    </div>`;
+  } else if (cs === 'classic') {
+    const metaClassic = ([l, v]) => `<div><span class="cover-meta-label">${esc(l)}: </span>${esc(v)}</div>`;
+    inner = `<div class="cover-classic">
+      ${logo}<h1>${esc(title||'Untitled')}</h1>
+      ${absEl}
+      <div class="cover-meta">${metaItems.map(metaClassic).join('')}</div>
+    </div>`;
+  } else if (cs === 'modern') {
+    inner = `<div class="cover-modern">
+      <div>${logo}<h1>${esc(title||'Untitled')}</h1>${absEl}</div>
+      <div class="cover-meta">${metaItems.map(metaKV).join('')}</div>
+    </div>`;
+  } else {
+    // default / academic: two-column meta footer
+    inner = `<div class="cover-default">
+      <div class="cover-top">${logo}
+        <h1>${esc(title||'Untitled')}</h1>
+        ${absEl}
+      </div>
+      <div class="cover-meta">
+        <div>${metaItems.slice(0,2).map(metaKV).join('')}</div>
+        <div style="text-align:right">${metaItems.slice(2).map(metaKV).join('')}</div>
+      </div>
+    </div>`;
+  }
+  // Wrap in .cover-bunker-wrapper so print CSS rules apply.
+  cover.innerHTML = `<div class="cover-bunker-wrapper"><div class="print-cover"><div class="cover-inner style-${esc(cs)}">${inner}</div></div></div>`;
+}
+
+/* =========================================================
+   RENDER
+   ========================================================= */
+
+// Detect which optional libraries the current source requires.
+function detectLibs(src) {
+  return {
+    marked:  markup === 'markdown',
+    mermaid: /```mermaid|{{<\s*mermaid/.test(src),
+    chartjs: /```inlineChartJS|{{<\s*chart/.test(src),
+    d3:      /```inlineD3JS|{{<\s*d3js/.test(src),
+  };
+}
+
+async function render() {
+  if (suppressRender) return;
+  const { meta, body } = parseFrontmatter(ed.value);
+  if (Object.keys(meta).length > 0) { applyMeta(meta); syncUI(); applyStyles(); renderCover(); }
+  const src = body;
+
+  const libs = detectLibs(src);
+
+  let html = '';
+  try {
+    if (markup === 'djot') {
+      html = djotRenderHTML(djotParse(src));
+    } else {
+      await ensureLib('marked');
+      html = marked.parse(src, { gfm: true, breaks: false });
+    }
+  } catch(e) {
+    html = `<span style="color:red">Parse error: ${e.message}</span>`;
+  }
+
+  pi.innerHTML = html;
+  applyStyles();
+  renderCover();
+  await postProcess(src, libs);
+  if (wysiwyg) instrumentWysiwyg();
+}
+
+async function postProcess(src, libs) {
+  if (libs.mermaid) {
+    await ensureLib('mermaid');
+    pi.querySelectorAll('pre code.language-mermaid').forEach(block => {
+      const div       = document.createElement('div');
+      div.className   = 'mermaid';
+      div.textContent = block.textContent;
+      block.parentElement.replaceWith(div);
+    });
+    if (window.mermaid) mermaid.run({ nodes: pi.querySelectorAll('.mermaid') });
+  }
+
+  if (libs.chartjs) {
+    await ensureLib('chartjs');
+    pi.querySelectorAll('pre code.language-inlineChartJS').forEach(block => {
+      try {
+        const chartCfg = JSON.parse(block.textContent);
+        const canvas   = document.createElement('canvas');
+        canvas.style.cssText = 'max-width:100%;height:300px;';
+        block.parentElement.replaceWith(canvas);
+        new Chart(canvas, chartCfg);
+      } catch(e) { /* leave block as-is on parse error */ }
+    });
+  }
+
+  if (libs.d3) await ensureLib('d3');
+}
+
+/* =========================================================
+   STATUS BAR
+   ========================================================= */
+
+function status() {
+  const v      = ed.value;
+  const { body } = parseFrontmatter(v);
+  document.getElementById('s-lang').textContent  = markup.toUpperCase();
+  document.getElementById('s-words').textContent = body.trim() ? body.trim().split(/\s+/).length+' words' : '0 words';
+  document.getElementById('s-chars').textContent = v.length+' chars';
+  document.getElementById('s-lines').textContent = v.split('\n').length+' lines';
+  const before = v.substring(0, ed.selectionStart);
+  const ln     = before.split('\n');
+  document.getElementById('s-pos').textContent   = `${ln.length}:${ln[ln.length-1].length+1}`;
+}
+
+/* =========================================================
+   EDITOR EVENTS
+   ========================================================= */
+
+ed.addEventListener('input', () => { render(); status(); });
+ed.addEventListener('keyup',  status);
+ed.addEventListener('click',  status);
+ed.addEventListener('keydown', e => {
+  if (e.key !== 'Tab') return;
+  e.preventDefault();
+  const s = ed.selectionStart, n = ed.selectionEnd;
+  ed.setRangeText('  ', s, n, 'end');
+  ed.dispatchEvent(new Event('input'));
+});
+
+// 'w' key toggles wysiwyg when focus is not in a text field.
+document.addEventListener('keydown', e => {
+  if (e.key === 'w' && !e.ctrlKey && !e.metaKey &&
+      document.activeElement.tagName !== 'TEXTAREA' &&
+      document.activeElement.tagName !== 'INPUT')
+    toggleWysiwyg();
+});
+
+/* =========================================================
+   VIEW MODE
+   ========================================================= */
+
+function setView(m) {
+  viewMode   = m;
+  ws.className = wysiwyg ? 'mode-wysiwyg' : `mode-${m}`;
+  document.querySelectorAll('[data-view]').forEach(b =>
+    b.classList.toggle('active', b.dataset.view === m));
+  document.getElementById('btn-split').classList.toggle('active', m === 'split'   && !wysiwyg);
+  document.getElementById('btn-src').classList.toggle(  'active', m === 'editor'  && !wysiwyg);
+  document.getElementById('btn-view').classList.toggle( 'active', m === 'preview' && !wysiwyg);
+}
+
+document.getElementById('btn-split').onclick = () => setView('split');
+document.getElementById('btn-src').onclick   = () => setView('editor');
+document.getElementById('btn-view').onclick  = () => setView('preview');
+document.getElementById('markup-select').onchange = e => {
+  markup = e.target.value;
+  document.getElementById('si-markup').value = markup;
+  status(); render();
+};
+
+/* =========================================================
+   WYSIWYG TOGGLE
+   ========================================================= */
+
+wyBtn.onclick = toggleWysiwyg;
+function toggleWysiwyg() {
+  wysiwyg = !wysiwyg;
+  wyBtn.classList.toggle('wysiwyg-on', wysiwyg);
+  document.body.classList.toggle('wysiwyg-mode', wysiwyg);
+  document.getElementById('s-wy').style.display = wysiwyg ? 'inline' : 'none';
+  ws.className = wysiwyg ? 'mode-wysiwyg' : `mode-${viewMode}`;
+  if (wysiwyg) render();
+  else { teardownWysiwyg(); render(); }
+}
+
+/* =========================================================
+   WYSIWYG INSTRUMENTATION
+   ========================================================= */
+
+let wyDebounce = null;
+
+function instrumentWysiwyg() {
+  pi.querySelectorAll('h1,h2,h3,h4,h5,h6,p,blockquote').forEach(el => {
+    if (el.dataset.wy) return;
+    el.contentEditable = 'true'; el.dataset.wy = '1';
+    el.addEventListener('input', onWyInput);
+    el.addEventListener('keydown', onWyKey);
+  });
+
+  pi.querySelectorAll('li').forEach(li => {
+    if (li.dataset.wy) return;
+    li.contentEditable = 'true'; li.dataset.wy = '1';
+    li.addEventListener('input', onWyInput);
+    li.addEventListener('keydown', onWyKey);
+    if (!li.querySelector('.wy-add-li')) {
+      const btn = document.createElement('button');
+      btn.className   = 'wy-add-li'; btn.textContent = '+'; btn.title = 'Add item';
+      btn.addEventListener('mousedown', ev => { ev.preventDefault(); addListItem(li); });
+      li.appendChild(btn);
+    }
+  });
+
+  // Instrument table cells, not images inside them.
+  pi.querySelectorAll('td,th').forEach(cell => {
+    if (cell.dataset.wy) return;
+    cell.contentEditable = 'true'; cell.dataset.wy = '1';
+    cell.addEventListener('input', onWyInput);
+    cell.addEventListener('keydown', onWyKey);
+  });
+
+  pi.querySelectorAll('table').forEach(tbl => {
+    if (tbl.nextElementSibling?.classList.contains('wy-add-row')) return;
+    const btn = document.createElement('button');
+    btn.className   = 'wy-add-row'; btn.textContent = '+ add row';
+    btn.addEventListener('mousedown', ev => { ev.preventDefault(); addTableRow(tbl); });
+    tbl.insertAdjacentElement('afterend', btn);
+  });
+}
+
+function teardownWysiwyg() {
+  pi.querySelectorAll('[data-wy]').forEach(el => {
+    el.removeAttribute('contenteditable'); el.removeAttribute('data-wy');
+    el.removeEventListener('input', onWyInput); el.removeEventListener('keydown', onWyKey);
+  });
+  pi.querySelectorAll('.wy-add-li, .wy-add-row').forEach(el => el.remove());
+}
+
+function onWyInput() {
+  clearTimeout(wyDebounce);
+  wyDebounce = setTimeout(serializeBack, 280);
+}
+
+function onWyKey(e) {
+  const el  = e.currentTarget;
+  const tag = el.tagName;
+
+  if (e.key === 'Enter' && tag === 'LI') {
+    e.preventDefault();
+    if (innerMixed(el).trim() === '') { el.remove(); serializeBack(); return; }
+    addListItem(el); return;
+  }
+
+  if (tag === 'TD' || tag === 'TH') {
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      const cells = [...el.closest('table').querySelectorAll('td,th')];
+      const i     = cells.indexOf(el);
+      if (e.shiftKey) { if (i > 0) cells[i-1].focus(); }
+      else if (i < cells.length - 1) cells[i+1].focus();
+      else addTableRow(el.closest('table'));
+      return;
+    }
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const row = el.closest('tr'), ci = [...row.children].indexOf(el);
+      const nr  = row.nextElementSibling;
+      if (nr) { const t = nr.children[ci]; if (t) { t.focus(); return; } }
+      addTableRow(el.closest('table')); return;
+    }
+  }
+
+  // Backspace on empty heading converts it to a paragraph.
+  if (e.key === 'Backspace' && /^H\d$/.test(tag) && !el.textContent.trim()) {
+    e.preventDefault();
+    const p = makeEditable('p');
+    el.replaceWith(p); p.focus(); serializeBack();
+  }
+}
+
+function makeEditable(tagName) {
+  const el = document.createElement(tagName);
+  el.contentEditable = 'true'; el.dataset.wy = '1';
+  el.addEventListener('input', onWyInput); el.addEventListener('keydown', onWyKey);
+  return el;
+}
+
+function addListItem(li) {
+  const nli = makeEditable('li');
+  const btn = document.createElement('button');
+  btn.className   = 'wy-add-li'; btn.textContent = '+'; btn.title = 'Add item';
+  btn.addEventListener('mousedown', ev => { ev.preventDefault(); addListItem(nli); });
+  nli.appendChild(btn);
+  li.insertAdjacentElement('afterend', nli);
+  placeCaret(nli); serializeBack();
+}
+
+function addTableRow(tbl) {
+  const tbody = tbl.querySelector('tbody') || tbl;
+  const last  = tbody.querySelector('tr:last-child');
+  if (!last) return;
+  const nr = document.createElement('tr');
+  [...last.children].forEach(() => nr.appendChild(makeEditable('td')));
+  tbody.appendChild(nr);
+  nr.children[0].focus(); serializeBack();
+}
+
+function placeCaret(el) {
+  el.focus();
+  const r = document.createRange(); r.setStart(el, 0); r.collapse(true);
+  const s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+}
+
+/* =========================================================
+   SERIALIZE WYSIWYG DOM -> MARKUP SOURCE
+   Images use getAttribute('src') to avoid browser URL absolutizing.
+   ========================================================= */
+
+function serializeBack() {
+  suppressRender = true;
+  const { meta }  = parseFrontmatter(ed.value);
+  const fmBlock   = Object.keys(meta).length > 0 ? generateFrontmatter() : '';
+  ed.value        = fmBlock + domToMarkup(pi);
+  status();
+  suppressRender  = false;
+}
+
+function domToMarkup(container) {
+  const parts = [];
+  for (const node of container.childNodes) {
+    if (node.nodeType === Node.TEXT_NODE) { const t = node.textContent.trim(); if (t) parts.push(t); continue; }
+    if (node.nodeType !== Node.ELEMENT_NODE) continue;
+    if (node.classList.contains('wy-add-row')) continue;
+    const m = elemToMarkup(node);
+    if (m !== null && m !== '') parts.push(m);
+  }
+  return parts.join('\n\n').trimEnd();
+}
+
+function elemToMarkup(el) {
+  const t = el.tagName;
+  if (/^H([1-6])$/.test(t)) return '#'.repeat(+t[1]) + ' ' + innerMixed(el);
+  if (t === 'P')             return innerMixed(el);
+  if (t === 'BLOCKQUOTE')    return innerMixed(el).split('\n').map(l => '> '+l).join('\n');
+  if (t === 'UL')            return [...el.querySelectorAll(':scope > li')].map(li => '- '+liMixed(li)).join('\n');
+  if (t === 'OL')            return [...el.querySelectorAll(':scope > li')].map((li,i) => `${i+1}. `+liMixed(li)).join('\n');
+  if (t === 'PRE') {
+    const code = el.querySelector('code');
+    const lang = (code?.className||'').replace('language-','');
+    return '```'+(lang||'')+'\n'+(code ? code.textContent : el.textContent)+'\n```';
+  }
+  if (t === 'HR')    return markup === 'djot' ? '* * * *' : '---';
+  if (t === 'TABLE') return tblToMarkup(el);
+  if (t === 'FIGURE') {
+    const img = el.querySelector('img');
+    const cap = el.querySelector('figcaption')?.textContent || '';
+    if (!img) return '';
+    return cap ? `![${img.alt||''}](${img.getAttribute('src')||img.src})\n\n_${cap}_`
+               : `![${img.alt||''}](${img.getAttribute('src')||img.src})`;
+  }
+  if (t === 'IMG') return `![${el.alt||''}](${el.getAttribute('src')||el.src})`;
+  return domToMarkup(el);
+}
+
+function innerMixed(el) {
+  let out = '';
+  for (const n of el.childNodes) {
+    if (n.nodeType === Node.TEXT_NODE) { out += n.textContent; continue; }
+    if (n.classList?.contains('wy-add-li')) continue;
+    if (n.nodeType === Node.ELEMENT_NODE) out += inlineMarkup(n);
+  }
+  return out.trim();
+}
+
+// innerMixed variant for list items (no functional difference, kept for clarity at call site).
+const liMixed = innerMixed;
+
+// Alias kept for internal callers that use innerTxt.
+const innerTxt = innerMixed;
+
+function inlineMarkup(n) {
+  const t     = n.tagName;
+  const inner = innerMixed(n);
+  if (t === 'STRONG' || t === 'B') return markup === 'djot' ? `*${inner}*` : `**${inner}**`;
+  if (t === 'EM'     || t === 'I') return `_${inner}_`;
+  if (t === 'CODE')                return '`'+inner+'`';
+  if (t === 'A')                   return `[${inner}](${n.getAttribute('href')||''})`;
+  if (t === 'BR')                  return '\n';
+  // getAttribute avoids browser absolutizing relative URLs.
+  if (t === 'IMG')                 return `![${n.alt||''}](${n.getAttribute('src')||n.src})`;
+  if (t === 'SPAN')                return inner;
+  return inner;
+}
+
+function tblToMarkup(tbl) {
+  const rows = [...tbl.querySelectorAll('tr')];
+  if (!rows.length) return '';
+  const fmtCell = c => {
+    let out = '';
+    for (const n of c.childNodes) {
+      if (n.nodeType === Node.TEXT_NODE) out += n.textContent.replace(/\|/g,'\\|');
+      else if (n.nodeType === Node.ELEMENT_NODE) out += inlineMarkup(n).replace(/\|/g,'\\|');
+    }
+    return out.trim();
+  };
+  const fmtRow = tr => '| ' + [...tr.children].map(fmtCell).join(' | ') + ' |';
+  const hdr    = fmtRow(rows[0]);
+  const sep    = '|' + [...rows[0].children].map(() => ' --- |').join('');
+  const body   = rows.slice(1).map(fmtRow).join('\n');
+  return [hdr, sep, body].filter(Boolean).join('\n');
+}
+
+/* =========================================================
+   FORMAT TOOLBAR
+   ========================================================= */
+
+// Returns markup token pairs for the current markup language.
+function tokens() {
+  const d = markup === 'djot';
+  return {
+    bold:   d ? ['*','*'] : ['**','**'],
+    italic: ['_','_'], code: ['`','`'],
+    h1: ['# ',''], h2: ['## ',''], h3: ['### ',''],
+    ul: ['- ',''], ol: ['1. ',''], bq: ['> ',''],
+    cb: ['```\n','\n```'], hr: [d ? '\n\n* * * *\n\n' : '\n\n---\n\n', ''],
+  };
+}
+
+function applyInline(pre, suf) {
+  const s = ed.selectionStart, n = ed.selectionEnd, sel = ed.value.substring(s, n);
+  ed.setRangeText(pre+sel+suf, s, n, 'select');
+  if (s === n) ed.selectionStart = ed.selectionEnd = s + pre.length;
+  ed.dispatchEvent(new Event('input')); ed.focus();
+}
+
+function applyBlock(pre) {
+  const s = ed.selectionStart, n = ed.selectionEnd, v = ed.value;
+  const ls = v.lastIndexOf('\n', s-1) + 1;
+  let le = v.indexOf('\n', n); if (le < 0) le = v.length;
+  const lines   = v.substring(ls, le).split('\n');
+  const allHave = lines.every(l => l.startsWith(pre) || !l.trim());
+  const nl      = lines.map(l => allHave ? l.replace(pre,'') : (l.trim() ? pre+l : l));
+  ed.setRangeText(nl.join('\n'), ls, le, 'select');
+  ed.dispatchEvent(new Event('input')); ed.focus();
+}
+
+document.querySelectorAll('.fmt-btn[data-fmt]').forEach(btn => {
+  btn.onclick = () => {
+    const f = btn.getAttribute('data-fmt'), t = tokens()[f]; if (!t) return;
+    const [pre, suf] = t;
+    if (['bold','italic','code','cb','hr'].includes(f)) applyInline(pre, suf);
+    else applyBlock(pre);
+  };
+});
+
+/* =========================================================
+   MODAL DIALOG
+   ========================================================= */
+
+const mOverlay = document.getElementById('modal-overlay');
+const mTitle   = document.getElementById('modal-title');
+const mBody    = document.getElementById('modal-body');
+const mOk      = document.getElementById('modal-ok');
+let mCb = null;
+
+// Build a modal with typed field descriptors.
+// Each field: { id, label, type-, ph-, val-, options- }
+function openModal(title, fields, cb, okLabel='INSERT') {
+  mTitle.textContent = title; mBody.innerHTML = ''; mCb = cb;
+  mOk.textContent   = okLabel;
+  fields.forEach(f => {
+    const row = document.createElement('div'); row.className = 'modal-row';
+    const lbl = document.createElement('label'); lbl.className = 'modal-lbl'; lbl.textContent = f.label;
+    if (f.type === 'select') {
+      const sel = document.createElement('select');
+      sel.className = 'modal-inp'; sel.id = 'mf-'+f.id;
+      (f.options||[]).forEach(([v,l]) => { const o = document.createElement('option'); o.value = v; o.textContent = l; sel.appendChild(o); });
+      if (f.val) sel.value = f.val;
+      row.appendChild(lbl); row.appendChild(sel);
+    } else {
+      const inp = document.createElement('input');
+      inp.className = 'modal-inp'; inp.type = f.type||'text';
+      inp.placeholder = f.ph||''; inp.id = 'mf-'+f.id; inp.value = f.val||'';
+      row.appendChild(lbl); row.appendChild(inp);
+    }
+    mBody.appendChild(row);
+  });
+  mOverlay.classList.add('active');
+  setTimeout(() => mBody.querySelector('input,select')?.focus(), 50);
+}
+
+function closeModal() { mOverlay.classList.remove('active'); mCb = null; }
+function getModalVals() {
+  const v = {};
+  mBody.querySelectorAll('input,select').forEach(i => v[i.id.replace('mf-','')] = i.value);
+  return v;
+}
+
+document.getElementById('modal-cancel').onclick = closeModal;
+document.getElementById('modal-x').onclick      = closeModal;
+mOverlay.onclick = e => { if (e.target === mOverlay) closeModal(); };
+mOk.onclick      = () => { if (mCb) mCb(getModalVals()); closeModal(); };
+mBody.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); mOk.click(); } });
+
+/* --- insert actions wired to format toolbar --- */
+
+document.getElementById('fmt-link').onclick = () => openModal('INSERT LINK',
+  [{id:'text',label:'Text',ph:'Click here'},{id:'url',label:'URL',ph:'https://'}],
+  ({text,url}) => applyInline(`[${text||'link'}](${url||'https://'})`, ''));
+
+document.getElementById('fmt-img').onclick = () => openModal('INSERT IMAGE',
+  [{id:'url',label:'URL',ph:'https://...'},{id:'alt',label:'Alt text',ph:'Description'}],
+  ({url,alt}) => applyInline(`\n\n![${alt||'image'}](${url||'https://'})\n\n`, ''));
+
+document.getElementById('fmt-table').onclick = () => openModal('INSERT TABLE',
+  [{id:'cols',label:'Columns',ph:'3',val:'3'},{id:'rows',label:'Data rows',ph:'3',val:'3'}],
+  ({cols,rows}) => {
+    const c = Math.max(1, +cols||3), r = Math.max(1, +rows||3);
+    const hdr = '| ' + Array.from({length:c}, (_,i) => `H${i+1}`).join(' | ') + ' |';
+    const sep = '|' + Array.from({length:c}, () => ' --- |').join('');
+    const row = '| ' + Array.from({length:c}, () => 'Cell').join(' | ') + ' |';
+    applyInline(`\n\n${hdr}\n${sep}\n${Array.from({length:r},()=>row).join('\n')}\n\n`, '');
+  });
+
+document.getElementById('fmt-cover').onclick = () => openModal('COVER PAGE',
+  [
+    {id:'style', label:'Style', type:'select', options:[
+      ['default','Default (Academic)'],['sleek','Sleek (Technical)'],
+      ['minimal','Minimal'],['classic','Classic'],['modern','Modern']
+    ], val: cfg.coverStyle||'default'},
+    {id:'title',   label:'Title',    ph:'Document Title', val: cfg.title},
+    {id:'author',  label:'Author',   ph:'Your Name',      val: cfg.author},
+    {id:'abstract',label:'Abstract', ph:'Optional...',    val: cfg.abstract},
+  ],
+  ({style,title,author,abstract}) => {
+    cfg.cover = true; cfg.coverStyle = style;
+    if (title)    cfg.title    = title;
+    if (author)   cfg.author   = author;
+    if (abstract) cfg.abstract = abstract;
+    syncUI(); applyStyles(); renderCover();
+  }, 'APPLY');
+
+document.getElementById('fmt-frontmatter').onclick = () => {
+  const { body } = parseFrontmatter(ed.value);
+  suppressRender = true;
+  ed.value       = generateFrontmatter() + body;
+  suppressRender = false;
+  render(); status();
+};
+
+/* =========================================================
+   NEW DOCUMENT
+   ========================================================= */
+
+document.getElementById('btn-new').onclick = () => {
+  if (ed.value && !confirm('Discard current document?')) return;
+  cfg = { ...CFG_DEFAULTS };
+  ed.value = ''; syncUI(); applyStyles(); render(); status();
+};
+
+/* =========================================================
+   SETTINGS PANEL
+   ========================================================= */
+
+const pOverlay = document.getElementById('panel-overlay');
+const sPanel   = document.getElementById('settings-panel');
+document.getElementById('btn-settings').onclick = () => { pOverlay.classList.add('active'); sPanel.classList.add('active'); syncUI(); };
+document.getElementById('s-close').onclick = closePanel;
+pOverlay.onclick = closePanel;
+function closePanel() { pOverlay.classList.remove('active'); sPanel.classList.remove('active'); }
+
+document.querySelectorAll('.ptab').forEach(btn => {
+  btn.onclick = () => {
+    document.querySelectorAll('.ptab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const t = btn.dataset.ptab;
+    document.getElementById('ptab-general').style.display = t === 'general' ? ''     : 'none';
+    document.getElementById('ptab-cover').style.display   = t === 'cover'   ? ''     : 'none';
+    document.getElementById('ptab-style').style.display   = t === 'style'   ? 'flex' : 'none';
+    document.getElementById('ptab-css').style.display     = t === 'css'     ? 'flex' : 'none';
+    if (t === 'style') styleTabOpen();
+  };
+});
+
+document.querySelectorAll('[data-theme]').forEach(btn => {
+  btn.onclick = () => {
+    const t = btn.dataset.theme; cfg.theme = t;
+    document.body.setAttribute('data-theme', t);
+    document.querySelectorAll('[data-theme]').forEach(b => b.classList.toggle('active', b.dataset.theme === t));
+    applyStyles();
+  };
+});
+
+document.querySelectorAll('[data-doc-theme]').forEach(btn => {
+  btn.onclick = () => {
+    cfg.docTheme = btn.dataset.docTheme;
+    document.querySelectorAll('[data-doc-theme]').forEach(b =>
+      b.classList.toggle('active', b.dataset.docTheme === cfg.docTheme));
+    applyStyles();
+  };
+});
+
+document.querySelectorAll('[data-view]').forEach(btn => {
+  btn.onclick = () => setView(btn.dataset.view);
+});
+
+/* --- image controls --- */
+const imgRange = document.getElementById('si-imgmax-range');
+const imgText  = document.getElementById('si-imgmax');
+imgRange.addEventListener('input', () => { const v = imgRange.value+'%'; imgText.value = v; cfg.imgmax = v; applyStyles(); });
+imgText.addEventListener('input', () => {
+  cfg.imgmax = imgText.value;
+  const m = imgText.value.match(/^(\d+)%$/);
+  if (m) imgRange.value = m[1];
+  applyStyles();
+});
+document.getElementById('si-imgalign').addEventListener('input', e => { cfg.imgalign = e.target.value; applyStyles(); });
+
+/* --- user CSS textarea --- */
+const userCssEl = document.getElementById('si-usercss');
+userCssEl.addEventListener('input', () => { cfg.usercss = userCssEl.value; applyStyles(); });
+userCssEl.addEventListener('keydown', e => {
+  if (e.key === 'Tab') { e.preventDefault(); const s = userCssEl.selectionStart, n = userCssEl.selectionEnd; userCssEl.setRangeText('  ',s,n,'end'); }
+});
+
+/* --- cover settings --- */
+document.getElementById('si-cover').addEventListener('change',      e => { cfg.cover      = e.target.checked; renderCover(); });
+document.getElementById('si-coverstyle').addEventListener('input',  e => { cfg.coverStyle = e.target.value;   renderCover(); });
+document.getElementById('si-logo').addEventListener('input',        e => { cfg.coverLogo  = e.target.value;   renderCover(); });
+document.getElementById('si-abstract').addEventListener('input',    e => { cfg.abstract   = e.target.value;   renderCover(); });
+
+/* --- markup selector in settings --- */
+document.getElementById('si-markup').addEventListener('change', e => {
+  markup = e.target.value;
+  document.getElementById('markup-select').value = markup;
+  status(); render();
+});
+
+/* --- generic settings input binding --- */
+function bnd(id, key, after) {
+  const el = document.getElementById(id); if (!el) return;
+  el.addEventListener('input', () => { cfg[key] = el.value; if (after) after(el.value); applyStyles(); });
+}
+// Color inputs: sync native color picker to hex text field bidirectionally.
+function bndC(cid, hid, key) {
+  const cel = document.getElementById(cid), hel = document.getElementById(hid);
+  cel.addEventListener('input', () => { cfg[key] = cel.value; hel.value = cel.value; applyStyles(); });
+  hel.addEventListener('input', () => {
+    if (!/^#[0-9a-fA-F]{3,6}$/.test(hel.value)) return;
+    cfg[key] = hel.value; cel.value = hel.value; applyStyles();
+  });
+}
+
+bnd('si-title','title');   bnd('si-author','author'); bnd('si-affiliation','affiliation');
+bnd('si-version','version'); bnd('si-license','license');
+bnd('si-colw','colw', v => document.documentElement.style.setProperty('--col-w', v));
+bnd('si-bfont','bfont');   bnd('si-hfont','hfont');
+bnd('si-fsize','fsize');   bnd('si-lh','lh');
+bnd('si-margins','margins'); bnd('si-pagesize','pagesize');
+bndC('sc-bg','sh-bg','cbg'); bndC('sc-fg','sh-fg','cfg');
+bndC('sc-lk','sh-lk','clk'); bndC('sc-br','sh-br','cbr');
+bndC('sc-ac','sh-ac','cac');
+
+function syncUI() {
+  const f = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
+  f('si-title', cfg.title||''); f('si-author', cfg.author||''); f('si-affiliation', cfg.affiliation||'');
+  f('si-version', cfg.version||''); f('si-license', cfg.license||'');
+  f('si-colw', cfg.colw); f('si-bfont', cfg.bfont); f('si-hfont', cfg.hfont);
+  f('si-fsize', cfg.fsize); f('si-lh', cfg.lh);
+  f('si-margins', cfg.margins); f('si-pagesize', cfg.pagesize||'A4');
+  f('si-imgmax', cfg.imgmax||'100%'); f('si-imgalign', cfg.imgalign||'');
+  f('si-usercss', cfg.usercss||'');
+  f('si-markup', markup);
+  const m = (cfg.imgmax||'100%').match(/^(\d+)%$/);
+  if (m) { const r = document.getElementById('si-imgmax-range'); if (r) r.value = m[1]; }
+  const sc = (c, h, v) => {
+    const cel = document.getElementById(c), hel = document.getElementById(h);
+    if (cel) cel.value = v; if (hel) hel.value = v;
+  };
+  sc('sc-bg','sh-bg',cfg.cbg); sc('sc-fg','sh-fg',cfg.cfg);
+  sc('sc-lk','sh-lk',cfg.clk); sc('sc-br','sh-br',cfg.cbr); sc('sc-ac','sh-ac',cfg.cac||cfg.clk);
+  const cv = document.getElementById('si-cover'); if (cv) cv.checked = cfg.cover;
+  f('si-coverstyle', cfg.coverStyle||'default'); f('si-logo', cfg.coverLogo||'');
+  f('si-abstract', cfg.abstract||'');
+  document.querySelectorAll('[data-theme]').forEach(b => b.classList.toggle('active', b.dataset.theme === cfg.theme));
+  document.querySelectorAll('[data-doc-theme]').forEach(b => b.classList.toggle('active', b.dataset.docTheme === cfg.docTheme));
+  document.querySelectorAll('[data-view]').forEach(b => b.classList.toggle('active', b.dataset.view === viewMode));
+}
+
+/* =========================================================
+   APPLY STYLES TO PREVIEW PANE
+   Preview CSS vars are fully decoupled from editor chrome vars.
+   ========================================================= */
+
+function applyStyles() {
+  const pp = document.getElementById('preview-pane');
+  pp.style.setProperty('--preview-bg',     cfg.cbg);
+  pp.style.setProperty('--preview-fg',     cfg.cfg);
+  pp.style.setProperty('--preview-link',   cfg.clk);
+  pp.style.setProperty('--preview-border', cfg.cbr);
+  pp.style.setProperty('--text2',          cfg.cfg + 'aa');
+  pp.style.setProperty('--text3',          cfg.cfg + '66');
+  pp.style.background  = cfg.cbg;
+  pi.style.color       = cfg.cfg;
+  pi.style.fontFamily  = cfg.bfont;
+  pi.style.fontSize    = cfg.fsize;
+  pi.style.lineHeight  = cfg.lh;
+  document.documentElement.style.setProperty('--col-w', cfg.colw);
+  document.documentElement.style.setProperty('--accent', cfg.cac || cfg.clk);
+
+  pp.className = cfg.docTheme !== 'default' ? `theme-${cfg.docTheme}` : '';
+
+  // Inject per-theme CSS variables onto the preview pane so theme CSS rules can read them.
+  const tv = cfg.themeVars || {};
+  if (cfg.docTheme === 'werx') {
+    const d = THEME_DEFS.werx.palettes[0].vars;
+    const v = k => tv[k] || d[k];
+    ['--wx-bg','--wx-fg','--wx-super','--wx-supertxt','--wx-mid','--wx-midtxt',
+     '--wx-accent','--wx-hdr','--wx-side'].forEach(k => pp.style.setProperty(k, v(k)));
+  } else if (cfg.docTheme === 'quixotist') {
+    const d = THEME_DEFS.quixotist.palettes[0].vars;
+    const v = k => tv[k] || d[k];
+    ['--qx-bg','--qx-fg','--qx-win','--qx-border','--qx-accent'].forEach(k => pp.style.setProperty(k, v(k)));
+  } else {
+    // Remove any leftover theme vars from a previous theme selection.
+    ['--wx-bg','--wx-fg','--wx-super','--wx-supertxt','--wx-mid','--wx-midtxt',
+     '--wx-accent','--wx-hdr','--wx-side',
+     '--qx-bg','--qx-fg','--qx-win','--qx-border','--qx-accent'].forEach(k => pp.style.removeProperty(k));
+  }
+
+  const imgAlignRule = cfg.imgalign === 'center'
+    ? '#preview-inner img { display:block; margin-left:auto; margin-right:auto; }'
+    : cfg.imgalign === 'left'
+    ? '#preview-inner img { float:left; margin-right:1em; margin-bottom:.5em; }'
+    : cfg.imgalign === 'right'
+    ? '#preview-inner img { float:right; margin-left:1em; margin-bottom:.5em; }'
+    : '';
+
+  let ds = document.getElementById('dyn');
+  if (!ds) { ds = document.createElement('style'); ds.id = 'dyn'; document.head.appendChild(ds); }
+
+  // In default theme, drive preview colors from cfg; in themed modes suppress so theme CSS wins.
+  if (cfg.docTheme === 'default') {
+    ds.textContent = `
+      #preview-inner h1,#preview-inner h2,#preview-inner h3,
+      #preview-inner h4,#preview-inner h5,#preview-inner h6 { font-family:${cfg.hfont}; color:${cfg.cfg}; }
+      #preview-inner h1,#preview-inner h2 { border-color:${cfg.cbr}; }
+      #preview-inner a               { color:${cfg.clk}; }
+      #preview-inner blockquote      { border-left-color:${cfg.cbr}; }
+      #preview-inner pre,#preview-inner table,
+      #preview-inner th,#preview-inner td { border-color:${cfg.cbr}; }
+      #preview-inner pre             { background:${rgba(cfg.cfg,.06)}; }
+      #preview-inner code            { background:${rgba(cfg.cfg,.08)}; }
+      #preview-inner hr              { border-color:${cfg.cbr}; }
+      #preview-inner th              { background:${rgba(cfg.cfg,.07)}; }
+      #preview-inner img             { max-width:${cfg.imgmax||'100%'}; height:auto; }
+      ${imgAlignRule}
+      .cover-default h1,.cover-sleek h1,.cover-minimal h1,
+      .cover-classic h1,.cover-modern h1 { color:${cfg.cfg}; }
+      .cover-default,.cover-sleek,.cover-minimal,
+      .cover-classic,.cover-modern { color:${cfg.cfg}; }
+    `;
+  } else {
+    ds.textContent = `
+      #preview-inner img { max-width:${cfg.imgmax||'100%'}; height:auto; }
+      ${imgAlignRule}
+    `;
+  }
+
+  let us = document.getElementById('usercss');
+  if (!us) { us = document.createElement('style'); us.id = 'usercss'; document.head.appendChild(us); }
+  us.textContent = cfg.usercss || '';
+}
+
+function rgba(hex, a) {
+  const r = parseInt(hex.slice(1,3)||'88',16);
+  const g = parseInt(hex.slice(3,5)||'88',16);
+  const b = parseInt(hex.slice(5,7)||'88',16);
+  return `rgba(${r},${g},${b},${a})`;
+}
+
+/* =========================================================
+   BUILD EXPORT CSS
+   ========================================================= */
+
+function buildExportCSS(bgOverride, fgOverride) {
+  const fg       = fgOverride || cfg.cfg;
+  const bg       = bgOverride || cfg.cbg;
+  const lk       = cfg.clk, br = cfg.cbr, hf = cfg.hfont, bf = cfg.bfont;
+  const imgmax   = cfg.imgmax, imgalign = cfg.imgalign, usercss = cfg.usercss||'';
+
+  const imgAlignRule = imgalign === 'center' ? 'img{display:block;margin-left:auto;margin-right:auto;}'
+    : imgalign === 'left'  ? 'img{float:left;margin-right:1em;margin-bottom:.5em;}'
+    : imgalign === 'right' ? 'img{float:right;margin-left:1em;margin-bottom:.5em;}' : '';
+
+  const tv = cfg.themeVars || {};
+  let themeCSS = '';
+
+  if (cfg.docTheme === 'werx') {
+    const d = THEME_DEFS.werx.palettes[0].vars;
+    const v = k => tv[k] || d[k];
+    themeCSS = `
+body{background:${v('--wx-bg')};color:${v('--wx-fg')};font-family:Helvetica,Verdana,Arial,'Liberation Sans',FreeSans,sans-serif;font-size:84%;}
+a{color:${v('--wx-accent')};text-decoration:none;}
+a:hover{text-decoration:underline;}
+h1,h2{color:${v('--wx-accent')};font-weight:bold;border-bottom:2px solid ${v('--wx-accent')};margin:2em 0 0;}
+h3,h4,h5,h6{color:${v('--wx-accent')};font-weight:bold;margin:2em 0 0;}
+table{width:100%;border-collapse:collapse;border:1px solid rgba(128,128,128,.5);}
+th{background:${v('--wx-super')};color:${v('--wx-supertxt')};padding:6px 12px;text-align:left;}
+td{padding:6px 12px;}
+tr:nth-child(odd){background:rgba(128,128,128,.1);}
+blockquote{border-left:3px solid ${v('--wx-accent')};padding:.5em 1em;opacity:.85;}
+code{background:rgba(128,128,128,.1);font-size:.85em;padding:1px 4px;}
+pre{background:rgba(128,128,128,.07);border:1px solid rgba(128,128,128,.25);padding:14px 18px;overflow-x:auto;}`;
+  } else if (cfg.docTheme === 'quixotist') {
+    const d = THEME_DEFS.quixotist.palettes[0].vars;
+    const v = k => tv[k] || d[k];
+    themeCSS = `
+body{background-color:${v('--qx-bg')};background-image:
+  linear-gradient(45deg,#e5e7eb 25%,transparent 25%),
+  linear-gradient(-45deg,#e5e7eb 25%,transparent 25%),
+  linear-gradient(45deg,transparent 75%,#e5e7eb 75%),
+  linear-gradient(-45deg,transparent 75%,#e5e7eb 75%);
+  background-size:20px 20px;background-position:0 0,0 10px,10px -10px,-10px 0;
+  color:${v('--qx-fg')};font-family:'JetBrains Mono','Courier New',monospace;font-size:13px;}
+a{text-decoration:underline;text-decoration-thickness:2px;text-decoration-color:${v('--qx-accent')};color:inherit;}
+a:hover{background-color:${v('--qx-accent')};color:black;}
+h1{font-size:2rem;font-weight:bold;text-transform:uppercase;letter-spacing:-1px;
+   border-bottom:2px solid ${v('--qx-accent')};margin-bottom:1rem;}
+h2{font-size:.875rem;text-transform:uppercase;border-bottom:2px solid ${v('--qx-accent')};
+   display:inline-block;margin-bottom:.75rem;}
+h3,h4,h5,h6{font-size:14px;text-transform:uppercase;margin-bottom:.5rem;}
+p{margin-bottom:1em;line-height:1.6;font-size:.9rem;}
+ul{list-style:square;padding-left:1.2rem;font-size:.9rem;}
+.bunker-window{background:${v('--qx-win')};border:2px solid ${v('--qx-border')};
+  box-shadow:4px 4px 0 rgba(0,0,0,1);padding:1rem;margin-bottom:1.5rem;}
+.post{border-left:3px solid ${v('--qx-border')};padding-left:1.5rem;margin-bottom:2rem;}
+.accent-bar{height:4px;background:${v('--qx-accent')};margin-bottom:1rem;}
+table{width:100%;border-collapse:collapse;font-size:.88em;}
+th{background:${v('--qx-border')};color:#fff;padding:6px 12px;text-align:left;}
+td{border:1px solid ${v('--qx-border')};padding:6px 12px;}
+code{font-family:'JetBrains Mono','Courier New',monospace;font-size:12px;background:#f8f8f8;border:1px solid #ddd;padding:1px 4px;}
+pre{background:#f8f8f8;border:1px solid #ddd;padding:1rem;font-size:12px;overflow-x:auto;margin:1rem 0;}`;
+  }
+
+  const baseCSS = cfg.docTheme !== 'default' ? '' : `
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{background:${bg};color:${fg};font-family:${bf};font-size:${cfg.fsize};line-height:${cfg.lh};padding:3em 2em;}
+h1,h2,h3,h4,h5,h6{font-family:${hf};font-weight:bold;margin:1.5em 0 .5em;line-height:1.3;color:${fg};}
+h1{font-size:2em;border-bottom:2px solid ${br};padding-bottom:.3em;}
+h2{font-size:1.4em;border-bottom:1px solid ${br};padding-bottom:.2em;}
+h3{font-size:1.15em;}p{margin:.8em 0;}a{color:${lk};}
+ul,ol{margin:.8em 0;padding-left:2em;}li{margin:.3em 0;}
+blockquote{margin:1em 0;padding:.5em 1em;border-left:3px solid ${br};font-style:italic;opacity:.8;}
+code{font-family:Courier New,monospace;font-size:.85em;background:rgba(128,128,128,.12);padding:1px 5px;}
+pre{background:rgba(128,128,128,.08);border:1px solid ${br};padding:14px 18px;overflow-x:auto;margin:1em 0;}
+pre code{background:none;padding:0;}
+table{width:100%;border-collapse:collapse;margin:1em 0;}
+th,td{border:1px solid ${br};padding:6px 12px;text-align:left;}
+th{background:rgba(128,128,128,.1);font-weight:bold;}
+hr{border:none;border-top:1px solid ${br};margin:2em 0;}
+figure{margin:1em 0;}figcaption{font-size:.85em;opacity:.6;text-align:center;margin-top:.25em;}`;
+
+  return `${baseCSS || '*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}'}
+.page{max-width:${cfg.colw};margin:0 auto;padding:3em 2em;}
+img{max-width:${imgmax||'100%'};height:auto;margin:1em 0;}
+${imgAlignRule}
+${themeCSS}
+${usercss}`;
+}
+
+/* =========================================================
+   FROZEN EXPORT HELPERS
+   mermaid/chartjs canvases are already rendered in the live preview;
+   cleanHTML() clones that DOM so no library needs to run in the export.
+   ========================================================= */
+
+// Strip WYSIWYG instrumentation artifacts from a clone of the preview DOM.
+function cleanHTML() {
+  const tmp = pi.cloneNode(true);
+  tmp.querySelectorAll('.wy-add-li,.wy-add-row').forEach(e => e.remove());
+  tmp.querySelectorAll('[contenteditable]').forEach(e => e.removeAttribute('contenteditable'));
+  tmp.querySelectorAll('[data-wy]').forEach(e => e.removeAttribute('data-wy'));
+  // Mermaid and Chart.js have already rendered to SVG/canvas in the live preview.
+  // The cloned SVG/canvas nodes are inert in the exported HTMLL - no library needed.
+  return tmp.innerHTML;
+}
+
+function buildDocComment(exportType) {
+  const now   = new Date();
+  const iso   = now.toISOString();
+  const local = now.toLocaleString(undefined, {
+    year:'numeric', month:'long', day:'numeric',
+    hour:'2-digit', minute:'2-digit', second:'2-digit', timeZoneName:'short'
+  });
+  return `<!-- DOCUMENT METADATA
+  last-edited: ${iso}
+  last-edited-local: ${local}
+  editor-theme: ${cfg.theme || 'terminus'}
+  export-type: ${exportType}
+  title: ${cfg.title || 'Untitled'}
+  author: ${cfg.author || ''}
+-->\n`;
+}
+
+function markExported(type) {
+  const el = document.getElementById('s-last-export');
+  if (!el) return;
+  const t    = new Date();
+  const hhmm = t.toLocaleTimeString(undefined, {hour:'2-digit', minute:'2-digit'});
+  el.textContent      = `EXPORTED ${type.toUpperCase()} ${hhmm}`;
+  el.style.display    = 'inline';
+  el.style.color      = 'var(--accent)';
+  setTimeout(() => { el.style.color = 'var(--text3)'; }, 2000);
+}
+
+/* =========================================================
+   COVER CSS / HTML (for exports)
+   ========================================================= */
+
+function buildCoverCSS() {
+  const fg = cfg.cfg || '#1a1410';
+  const br = cfg.cbr || '#d4ccbc';
+  const ac = cfg.cac || '#8b2020';
+  return `
+/* --- cover page --- */
+.print-cover-container{page-break-after:always;break-after:page;position:relative;}
+.cover-bunker-wrapper{border:4px solid ${fg};display:flex;flex-direction:column;
+  padding:2cm;background:white;position:relative;min-height:80vh;box-sizing:border-box;}
+.cover-default{display:flex;flex-direction:column;justify-content:space-between;height:100%;font-family:Georgia,serif;}
+.cover-default .cover-top h1{font-size:2.5em;font-family:Georgia,serif;font-weight:bold;margin:0 0 0.5em;color:${fg};}
+.cover-default .cover-top .abstract{font-size:0.9em;line-height:1.6;padding:1em 1.5em;border-left:3px solid ${br};margin:1.5em 0;font-style:italic;color:${fg};}
+.cover-default .cover-meta{border-top:2px solid ${fg};padding-top:1em;display:flex;justify-content:space-between;align-items:flex-end;font-size:0.85em;margin-top:auto;}
+.cover-default .cover-meta-label{font-size:0.7em;text-transform:uppercase;letter-spacing:0.1em;opacity:0.6;margin-bottom:0.2em;font-family:monospace;}
+.cover-default .cover-meta-val{font-weight:bold;font-family:monospace;}
+.cover-sleek{display:flex;flex-direction:column;justify-content:space-between;height:100%;font-family:monospace;}
+.cover-sleek .cover-top{border-left:6px solid ${ac};padding-left:1em;}
+.cover-sleek .cover-top h1{font-size:2em;text-transform:uppercase;letter-spacing:-0.02em;margin:0 0 0.4em;color:${fg};}
+.cover-sleek .cover-top .accent-bar{height:3px;width:60px;background:${ac};margin:0.5em 0 1em;}
+.cover-sleek .cover-top .abstract{font-size:0.85em;border:1px solid ${br};padding:1em;margin:1em 0;background:rgba(128,128,128,0.04);}
+.cover-sleek .cover-meta{display:grid;grid-template-columns:1fr 1fr;gap:1em;border-top:2px solid ${fg};padding-top:1em;font-size:0.8em;margin-top:auto;}
+.cover-sleek .cover-meta-label{font-size:0.7em;text-transform:uppercase;letter-spacing:0.1em;opacity:0.6;margin-bottom:0.2em;}
+.cover-sleek .cover-meta-val{font-weight:bold;}
+.cover-minimal{display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;height:100%;font-family:Georgia,serif;}
+.cover-minimal h1{font-size:3em;margin:0 0 1em;color:${fg};}
+.cover-minimal .cover-meta{font-size:0.85em;font-family:monospace;text-transform:uppercase;letter-spacing:0.1em;margin-top:2em;opacity:0.6;}
+.cover-classic{display:flex;flex-direction:column;justify-content:flex-start;height:100%;font-family:Georgia,serif;}
+.cover-classic h1{font-size:2.5em;margin:0 0 2em;color:${fg};text-align:left;}
+.cover-classic .abstract{font-size:0.9em;border-top:1px solid ${br};border-bottom:1px solid ${br};padding:1em 0;margin:1em 0;font-style:italic;line-height:1.7;}
+.cover-classic .cover-meta{margin-top:auto;font-size:0.85em;font-family:monospace;}
+.cover-classic .cover-meta-label{opacity:0.6;font-size:0.75em;text-transform:uppercase;letter-spacing:0.08em;}
+.cover-modern{display:flex;flex-direction:column;justify-content:space-between;height:100%;font-family:monospace;border-left:10px solid ${fg};padding-left:1.5em;}
+.cover-modern h1{font-size:2em;text-transform:uppercase;letter-spacing:0.05em;color:${fg};margin:0 0 0.5em;}
+.cover-modern .abstract{font-size:0.85em;padding:1em;background:rgba(128,128,128,0.06);margin:1em 0;border-right:3px solid ${ac};}
+.cover-modern .cover-meta{display:flex;gap:2em;font-size:0.8em;border-top:1px solid ${br};padding-top:0.8em;margin-top:auto;}
+.cover-modern .cover-meta-label{text-transform:uppercase;letter-spacing:0.08em;opacity:0.6;font-size:0.7em;}
+@media print{
+  .print-cover-container{page:cover;page-break-after:always;break-after:page;}
+  @page cover{margin:1cm;}
+  .cover-bunker-wrapper{border:4px solid black!important;display:flex!important;flex-direction:column!important;
+    padding:2cm!important;background:white!important;height:calc(297mm - 2cm)!important;min-height:0!important;
+    box-sizing:border-box!important;overflow:hidden!important;}
+  .cover-default,.cover-sleek,.cover-minimal,.cover-classic,.cover-modern{height:100%!important;flex:1!important;}
+  .cover-default .cover-meta,.cover-sleek .cover-meta,.cover-classic .cover-meta,
+  .cover-modern .cover-meta{margin-top:auto!important;}
+}`;
+}
+
+function buildCoverHTML() {
+  if (!cfg.cover) return '';
+  const tmp = document.getElementById('doc-cover').cloneNode(true);
+  return `<style>${buildCoverCSS()}</style><div class="print-cover-container">${tmp.innerHTML}</div>`;
+}
+
+/* =========================================================
+   EXPORT -- RENDERED HTML (no editor bundled)
+   The exported file embeds frontmatter so it can be re-opened in the editor.
+   The rendered HTML is a frozen snapshot: mermaid/chart canvases are already
+   baked in by cleanHTML(), so no CDN libraries are needed at view time.
+   ========================================================= */
+
+function exportHTML() {
+  const title = cfg.title || 'Untitled';
+  const docComment = buildDocComment('rendered-html');
+
+  const html = `<!DOCTYPE html>
+${docComment}<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${esc(title)}</title>
+<style>
+${buildExportCSS()}
+@media print{body{padding:0;}@page{size:${cfg.pagesize||'A4'};margin:${cfg.margins};}
+.page{max-width:100%;padding:0;}-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+#edit-bar{display:none;position:fixed;top:0;right:0;z-index:9999;
+  background:#111;color:#888;font-family:monospace;font-size:11px;padding:6px 12px;
+  border-bottom-left-radius:4px;cursor:pointer;letter-spacing:.05em;text-transform:uppercase;}
+#edit-bar:hover{color:#fff;}
+</style>
+</head>
+<body>
+<a id="edit-bar" href="#edit">[ EDIT ]</a>
+${buildCoverHTML()}
+<div class="page">
+${cleanHTML()}
+</div>
+<script>
+(function(){
+  if(location.hash==='#edit'){
+    var bar=document.getElementById('edit-bar');
+    bar.style.display='block';
+    bar.textContent='[ This file was exported -- open editor.html and paste in your source ]';
+  }
+  window.addEventListener('hashchange',function(){
+    if(location.hash==='#edit') document.getElementById('edit-bar').style.display='block';
+  });
+  document.getElementById('edit-bar').onclick=function(e){
+    e.preventDefault(); location.hash='edit';
+    alert('To edit: open editor.html in your browser, then paste your document source. Your settings are embedded in the frontmatter.');
+  };
+})();
+<\/script>
+</body>
+</html>`;
+  dl(title+'.html', html, 'text/html');
+  markExported('html');
+}
+
+/* =========================================================
+   EXPORT -- HTML + EDITOR BUNDLED (#edit opens editor iframe)
+   The editor is base64-encoded and embedded; no network is needed to edit.
+   ========================================================= */
+
+function exportEditor() {
+  const title = cfg.title || 'Untitled';
+
+  // Fetch the pristine editor source so embedded state is clean.
+  let editorSrc;
+  try {
+    const xhr = new XMLHttpRequest();
+    xhr.open('GET', location.href, false);
+    xhr.send();
+    editorSrc = xhr.responseText;
+  } catch(e) {
+    editorSrc = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+  }
+
+  const savedJson = JSON.stringify({...cfg, markup, viewMode});
+  const edContent = ed.value;
+
+  // Inject an init script that pre-fills the editor textarea on load.
+  const patchScript = `<script>
+(function(){
+  document.body.setAttribute('data-saved', ${JSON.stringify(savedJson)});
+  document.addEventListener('DOMContentLoaded', function(){
+    var ta = document.getElementById('editor');
+    if (ta) { ta.value = ${JSON.stringify(edContent)}; ta.dispatchEvent(new Event('input')); }
+  });
+})();
+<\/script>`;
+  const patchedEditor = editorSrc.replace(/<\/body>/i, patchScript + '</body>');
+  const editorB64     = btoa(unescape(encodeURIComponent(patchedEditor)));
+  const docComment    = buildDocComment('editor-html');
+
+  const html = `<!DOCTYPE html>
+${docComment}<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${esc(title)}</title>
+<style>
+${buildExportCSS()}
+@media print{body{padding:0;}@page{size:${cfg.pagesize||'A4'};margin:${cfg.margins};}
+.page{max-width:100%;padding:0;}-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+#edit-bar{
+  position:fixed;top:0;right:0;z-index:9999;
+  background:#111;color:#888;font-family:monospace;font-size:11px;
+  padding:6px 12px;border-bottom-left-radius:4px;cursor:pointer;
+  letter-spacing:.05em;text-transform:uppercase;text-decoration:none;}
+#edit-bar:hover{color:#fff;}
+#editor-shell{
+  display:none;position:fixed;inset:0;z-index:10000;background:#000;}
+#editor-shell iframe{width:100%;height:100%;border:none;}
+#editor-shell-close{
+  position:absolute;top:8px;left:12px;z-index:10001;
+  background:#111;color:#888;border:1px solid #333;
+  font-family:monospace;font-size:11px;padding:4px 10px;
+  cursor:pointer;letter-spacing:.05em;text-transform:uppercase;}
+#editor-shell-close:hover{color:#fff;}
+</style>
+</head>
+<body>
+<a id="edit-bar" href="#edit">[ EDIT ]</a>
+<div id="editor-shell">
+  <button id="editor-shell-close">x close</button>
+  <iframe id="editor-frame"></iframe>
+</div>
+${buildCoverHTML()}
+<div class="page">
+${cleanHTML()}
+</div>
+<script>
+(function(){
+  var b64   = ${JSON.stringify(editorB64)};
+  var shell = document.getElementById('editor-shell');
+  var frame = document.getElementById('editor-frame');
+  var bar   = document.getElementById('edit-bar');
+
+  function openEditor() {
+    if (frame.src && frame.src !== 'about:blank') { shell.style.display='block'; return; }
+    var bytes = Uint8Array.from(atob(b64), function(c){ return c.charCodeAt(0); });
+    var blob  = new Blob([bytes], {type:'text/html'});
+    frame.src = URL.createObjectURL(blob);
+    shell.style.display = 'block';
+  }
+
+  function closeEditor() {
+    shell.style.display = 'none';
+    history.replaceState(null, '', location.pathname + location.search);
+  }
+
+  bar.addEventListener('click', function(e){ e.preventDefault(); openEditor(); history.replaceState(null,'','#edit'); });
+  document.getElementById('editor-shell-close').addEventListener('click', closeEditor);
+
+  if (location.hash === '#edit') openEditor();
+  window.addEventListener('hashchange', function(){
+    if (location.hash === '#edit') openEditor(); else closeEditor();
+  });
+})();
+<\/script>
+</body>
+</html>`;
+  dl(title+'.html', html, 'text/html');
+  markExported('html+editor');
+}
+
+/* --- export HTML dropdown menu --- */
+const ehBtn = document.getElementById('btn-export-html');
+let eMenu = null;
+ehBtn.onclick = ev => {
+  ev.stopPropagation();
+  if (eMenu) { eMenu.remove(); eMenu = null; return; }
+  eMenu = document.createElement('div');
+  eMenu.style.cssText = 'position:fixed;z-index:500;background:var(--bg2);border:1px solid var(--border2);font-family:var(--font-mono);';
+  const r = ehBtn.getBoundingClientRect();
+  eMenu.style.top = r.bottom+'px'; eMenu.style.left = r.left+'px';
+  [{label:'RENDERED HTML', fn:exportHTML},{label:'HTML + EDITOR', fn:exportEditor}].forEach(item => {
+    const b = document.createElement('button');
+    b.style.cssText = 'display:block;width:100%;background:none;border:none;border-bottom:1px solid var(--border);color:var(--text2);padding:8px 16px;text-align:left;cursor:pointer;font-family:var(--font-mono);font-size:11px;letter-spacing:.05em;white-space:nowrap;';
+    b.textContent   = item.label;
+    b.onmouseover   = () => { b.style.background = 'var(--bg3)'; b.style.color = 'var(--text)'; };
+    b.onmouseout    = () => { b.style.background = 'none';       b.style.color = 'var(--text2)'; };
+    b.onclick       = () => { item.fn(); eMenu.remove(); eMenu = null; };
+    eMenu.appendChild(b);
+  });
+  document.body.appendChild(eMenu);
+  setTimeout(() => document.addEventListener('click', () => { if (eMenu) { eMenu.remove(); eMenu = null; } }, {once:true}), 0);
+};
+
+/* =========================================================
+   PDF EXPORT -- opens a styled print window
+   ========================================================= */
+
+document.getElementById('btn-export-pdf').onclick = () => {
+  const title     = cfg.title || 'Untitled';
+  const pw        = window.open('', '_blank');
+  const coverHtml = buildCoverHTML();
+  const comment   = buildDocComment('pdf');
+  pw.document.write(
+    '<!DOCTYPE html>\n' + comment +
+    '<html><head><meta charset="UTF-8"><title>' + esc(title) + '</title>\n' +
+    '<style>\n' +
+    '@page{size:' + (cfg.pagesize||'A4') + ';margin:' + cfg.margins + ';}\n' +
+    buildExportCSS() +
+    'body{padding:0;} .page{max-width:100%;padding:0;}' +
+    '-webkit-print-color-adjust:exact;print-color-adjust:exact;\n' +
+    '</style></head><body>\n' +
+    coverHtml +
+    '<div class="page">' + cleanHTML() + '</div>\n' +
+    '<script>window.onload=function(){window.print();window.close();};<\/script>\n' +
+    '</body></html>'
+  );
+  pw.document.close();
+  markExported('pdf');
+};
+
+/* =========================================================
+   UTILITIES
+   ========================================================= */
+
+function dl(name, content, type) {
+  const a   = document.createElement('a');
+  a.href     = URL.createObjectURL(new Blob([content], {type}));
+  a.download = name; a.click(); URL.revokeObjectURL(a.href);
+}
+
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+/* =========================================================
+   THEME DEFINITIONS
+   Canonical palettes ported from the source CSS files of each theme.
+   ========================================================= */
+
+const THEME_DEFS = {
+  default: {
+    label: 'Default',
+    vars: [],
+    palettes: []
+  },
+  werx: {
+    label: 'WERX',
+    varDefs: [
+      { key: '--wx-bg',       label: 'Background' },
+      { key: '--wx-fg',       label: 'Foreground' },
+      { key: '--wx-super',    label: 'Super Accent' },
+      { key: '--wx-supertxt', label: 'Super Text' },
+      { key: '--wx-mid',      label: 'Mid Accent' },
+      { key: '--wx-midtxt',   label: 'Mid Text' },
+      { key: '--wx-accent',   label: 'Text Accent' },
+      { key: '--wx-hdr',      label: 'Header Border' },
+      { key: '--wx-side',     label: 'Sidebar Border' },
+    ],
+    palettes: [
+      { name: 'Default', vars: {
+        '--wx-bg':'#ffffff','--wx-fg':'#000000',
+        '--wx-super':'#6487dc','--wx-supertxt':'#ffffff',
+        '--wx-mid':'#ff6d06','--wx-midtxt':'#000000',
+        '--wx-accent':'#0066cc','--wx-hdr':'#000000','--wx-side':'#dddddd'
+      }},
+      { name: 'Blue', vars: {
+        '--wx-bg':'#fffff7','--wx-fg':'#000000',
+        '--wx-super':'#6487dc','--wx-supertxt':'#ffffff',
+        '--wx-mid':'#d7d7d7','--wx-midtxt':'#000000',
+        '--wx-accent':'#0066cc','--wx-hdr':'#000000','--wx-side':'#dddddd'
+      }},
+      { name: 'Purple', vars: {
+        '--wx-bg':'#f0f8ff','--wx-fg':'#333333',
+        '--wx-super':'#8c1c9b','--wx-supertxt':'#ffffff',
+        '--wx-mid':'#26e34f','--wx-midtxt':'#000000',
+        '--wx-accent':'#34478b','--wx-hdr':'#000000','--wx-side':'#d3d3d3'
+      }},
+    ]
+  },
+  quixotist: {
+    label: 'Quixotist',
+    varDefs: [
+      { key: '--qx-bg',     label: 'Background' },
+      { key: '--qx-fg',     label: 'Foreground' },
+      { key: '--qx-win',    label: 'Window BG' },
+      { key: '--qx-border', label: 'Border / Shadow' },
+      { key: '--qx-accent', label: 'Accent' },
+    ],
+    palettes: [
+      { name: 'Default', vars: {
+        '--qx-bg':'#f4f4f6','--qx-fg':'#2b2b2b',
+        '--qx-win':'#ffffff','--qx-border':'#222222','--qx-accent':'#ffcc00'
+      }},
+      { name: 'Blue', vars: {
+        '--qx-bg':'#fffff7','--qx-fg':'#000000',
+        '--qx-win':'#ffffff','--qx-border':'#000000','--qx-accent':'#6487dc'
+      }},
+      { name: 'Purple', vars: {
+        '--qx-bg':'#f0f8ff','--qx-fg':'#333333',
+        '--qx-win':'#ffffff','--qx-border':'#000000','--qx-accent':'#8c1c9b'
+      }},
+    ]
+  }
+};
+
+// Custom themes survive the session but are lost on reload (intentional: no persistence needed yet).
+let customThemes = {};
+
+/* =========================================================
+   STYLE TAB -- colour picker + theme variable editor
+   ========================================================= */
+
+const SWATCH_32 = [
+  '#000000','#1a1a2e','#16213e','#0f3460',
+  '#533483','#e94560','#ff6b6b','#ff8e53',
+  '#ffd93d','#6bcb77','#4d96ff','#845ec2',
+  '#2c73d2','#009efa','#00d2fc','#4ffbdf',
+  '#ffffff','#f8f8f8','#cccccc','#888888',
+  '#444444','#222222','#b5451b','#d4a017',
+  '#5c8a00','#007965','#00587a','#1d3354',
+  '#ff007f','#c77dff','#9d4edd','#e0aaff'
+];
+
+let stPickerCb  = null;
+let stPickerHue = 0, stPickerSat = 100, stPickerVal = 100;
+let stPickerPos = { x: 100, y: 0 };
+
+function stHsvToHex(h, s, v) {
+  const S = s/100, V = v/100, C = V*S, X = C*(1-Math.abs((h/60)%2-1)), m = V-C;
+  let r, g, b;
+  if(h<60){r=C;g=X;b=0;}else if(h<120){r=X;g=C;b=0;}
+  else if(h<180){r=0;g=C;b=X;}else if(h<240){r=0;g=X;b=C;}
+  else if(h<300){r=X;g=0;b=C;}else{r=C;g=0;b=X;}
+  const hex = n => Math.round((n+m)*255).toString(16).padStart(2,'0');
+  return '#'+hex(r)+hex(g)+hex(b);
+}
+
+function stHexToHsv(hex) {
+  let h = hex.replace('#','');
+  if (h.length === 3) h = h.split('').map(c => c+c).join('');
+  const r = parseInt(h.slice(0,2),16)/255, g = parseInt(h.slice(2,4),16)/255, b = parseInt(h.slice(4,6),16)/255;
+  const max = Math.max(r,g,b), min = Math.min(r,g,b), d = max-min;
+  let hue = 0;
+  if (d) {
+    if (max===r) hue = ((g-b)/d)%6;
+    else if (max===g) hue = (b-r)/d+2;
+    else hue = (r-g)/d+4;
+    hue = Math.round(hue*60); if (hue<0) hue+=360;
+  }
+  return { h: hue, s: max ? Math.round(d/max*100) : 0, v: Math.round(max*100) };
+}
+
+function stDrawSpectrum() {
+  const c = document.getElementById('st-spectrum'); if (!c) return;
+  const ctx = c.getContext('2d'), W = c.width, H = c.height;
+  const hc = stHsvToHex(stPickerHue, 100, 100);
+  const gh = ctx.createLinearGradient(0,0,W,0);
+  gh.addColorStop(0,'white'); gh.addColorStop(1,hc);
+  ctx.fillStyle = gh; ctx.fillRect(0,0,W,H);
+  const gv = ctx.createLinearGradient(0,0,0,H);
+  gv.addColorStop(0,'rgba(0,0,0,0)'); gv.addColorStop(1,'black');
+  ctx.fillStyle = gv; ctx.fillRect(0,0,W,H);
+  const cx = (stPickerPos.x/100)*W, cy = (stPickerPos.y/100)*H;
+  ctx.beginPath(); ctx.arc(cx,cy,5,0,Math.PI*2);
+  ctx.strokeStyle = 'white'; ctx.lineWidth = 2; ctx.stroke();
+}
+
+function stOpenPicker(initialHex, cb) {
+  stPickerCb = cb;
+  const popup = document.getElementById('st-picker');
+  const hex   = /^#[0-9a-fA-F]{3,6}$/.test(initialHex) ? initialHex : '#888888';
+  document.getElementById('st-hex').value = hex;
+  document.getElementById('st-preview').style.background = hex;
+  const hsv = stHexToHsv(hex);
+  stPickerHue = hsv.h; stPickerSat = hsv.s; stPickerVal = hsv.v;
+  stPickerPos = { x: hsv.s, y: 100-hsv.v };
+  document.getElementById('st-hue').value = stPickerHue;
+  const sg = document.getElementById('st-swatches');
+  sg.innerHTML = '';
+  SWATCH_32.forEach(col => {
+    const sw = document.createElement('div');
+    sw.style.cssText = `width:100%;padding-bottom:100%;background:${col};cursor:pointer;border:1px solid #444;border-radius:2px;`;
+    sw.title   = col;
+    sw.onclick = () => {
+      document.getElementById('st-hex').value = col;
+      document.getElementById('st-preview').style.background = col;
+      const h2 = stHexToHsv(col);
+      stPickerHue = h2.h; stPickerSat = h2.s; stPickerVal = h2.v;
+      stPickerPos = { x: h2.s, y: 100-h2.v };
+      document.getElementById('st-hue').value = stPickerHue;
+      stDrawSpectrum();
+    };
+    sg.appendChild(sw);
+  });
+  const panel = document.getElementById('settings-panel');
+  const pr    = panel.getBoundingClientRect();
+  popup.style.left    = (pr.left - 228) + 'px';
+  popup.style.top     = '80px';
+  popup.style.display = 'flex';
+  stDrawSpectrum();
+}
+
+function stClosePicker() { document.getElementById('st-picker').style.display = 'none'; stPickerCb = null; }
+
+function stInitPickerControls() {
+  const specCanvas = document.getElementById('st-spectrum');
+  specCanvas.addEventListener('mousedown', e => {
+    function move(e) {
+      const rect = specCanvas.getBoundingClientRect();
+      const x    = Math.max(0, Math.min(1, (e.clientX-rect.left)/rect.width));
+      const y    = Math.max(0, Math.min(1, (e.clientY-rect.top)/rect.height));
+      stPickerPos = { x: x*100, y: y*100 }; stPickerSat = x*100; stPickerVal = (1-y)*100;
+      const hex  = stHsvToHex(stPickerHue, stPickerSat, stPickerVal);
+      document.getElementById('st-hex').value = hex;
+      document.getElementById('st-preview').style.background = hex;
+      stDrawSpectrum();
+    }
+    move(e);
+    const up = () => document.removeEventListener('mousemove', move);
+    document.addEventListener('mousemove', move);
+    document.addEventListener('mouseup', up, {once:true});
+  });
+
+  document.getElementById('st-hue').oninput = e => {
+    stPickerHue = parseFloat(e.target.value);
+    const hex   = stHsvToHex(stPickerHue, stPickerSat, stPickerVal);
+    document.getElementById('st-hex').value = hex;
+    document.getElementById('st-preview').style.background = hex;
+    stDrawSpectrum();
+  };
+
+  document.getElementById('st-hex').oninput = e => {
+    const v = e.target.value.trim();
+    if (!/^#[0-9a-fA-F]{3,6}$/.test(v)) return;
+    document.getElementById('st-preview').style.background = v;
+    const h = stHexToHsv(v);
+    stPickerHue = h.h; stPickerSat = h.s; stPickerVal = h.v;
+    stPickerPos = { x: h.s, y: 100-h.v };
+    document.getElementById('st-hue').value = stPickerHue;
+    stDrawSpectrum();
+  };
+
+  document.getElementById('st-pick-cancel').onclick = stClosePicker;
+  document.getElementById('st-pick-ok').onclick = () => {
+    const hex = document.getElementById('st-hex').value.trim();
+    if (stPickerCb && /^#[0-9a-fA-F]{3,6}$/.test(hex)) stPickerCb(hex);
+    stClosePicker();
+  };
+
+  // Close picker when clicking outside it.
+  document.addEventListener('mousedown', e => {
+    const popup = document.getElementById('st-picker');
+    if (popup.style.display !== 'none' && !popup.contains(e.target)) stClosePicker();
+  });
+}
+
+function styleTabOpen() { stRenderThemeSelect(); stRenderPresets(); stRenderVars(); }
+
+function stAllThemes() {
+  const out = [
+    { id:'default',   label:'Default' },
+    { id:'werx',      label:'WERX' },
+    { id:'quixotist', label:'Quixotist' },
+  ];
+  Object.keys(customThemes).forEach(id => out.push({ id, label: customThemes[id].label }));
+  return out;
+}
+
+function stRenderThemeSelect() {
+  const sel = document.getElementById('st-theme-sel'); if (!sel) return;
+  sel.innerHTML = '';
+  stAllThemes().forEach(({id, label}) => {
+    const o = document.createElement('option'); o.value = id; o.textContent = label;
+    if (id === cfg.docTheme) o.selected = true;
+    sel.appendChild(o);
+  });
+  sel.onchange = () => {
+    cfg.docTheme  = sel.value;
+    cfg.themeVars = {};
+    const def = THEME_DEFS[cfg.docTheme] || customThemes[cfg.docTheme];
+    if (def && def.palettes && def.palettes[0]) cfg.themeVars = {...def.palettes[0].vars};
+    document.querySelectorAll('[data-doc-theme]').forEach(b =>
+      b.classList.toggle('active', b.dataset.docTheme === cfg.docTheme));
+    applyStyles(); stRenderPresets(); stRenderVars();
+  };
+  document.getElementById('st-theme-del').onclick = () => {
+    if (THEME_DEFS[cfg.docTheme]) return;
+    delete customThemes[cfg.docTheme];
+    cfg.docTheme = 'default'; cfg.themeVars = {};
+    applyStyles(); stRenderThemeSelect(); stRenderPresets(); stRenderVars();
+  };
+  document.getElementById('st-theme-dup').onclick = () => {
+    const base = THEME_DEFS[cfg.docTheme] || customThemes[cfg.docTheme];
+    if (!base) return;
+    const id   = 'custom_'+Date.now();
+    const vars = cfg.themeVars && Object.keys(cfg.themeVars).length ? {...cfg.themeVars}
+      : (base.palettes && base.palettes[0] ? {...base.palettes[0].vars} : {});
+    customThemes[id] = {
+      label: (base.label||cfg.docTheme)+' Copy',
+      baseTheme: cfg.docTheme,
+      varDefs: base.varDefs || [],
+      palettes: [{ name:'Current', vars }]
+    };
+    cfg.docTheme = id; cfg.themeVars = {...vars};
+    applyStyles(); stRenderThemeSelect(); stRenderPresets(); stRenderVars();
+  };
+  document.getElementById('st-theme-save').onclick = () => {
+    const name = document.getElementById('st-theme-name').value.trim();
+    if (!name) return;
+    const base = THEME_DEFS[cfg.docTheme] || customThemes[cfg.docTheme];
+    const id   = 'custom_'+Date.now();
+    const vars = cfg.themeVars && Object.keys(cfg.themeVars).length ? {...cfg.themeVars}
+      : (base && base.palettes && base.palettes[0] ? {...base.palettes[0].vars} : {});
+    customThemes[id] = {
+      label: name,
+      baseTheme: cfg.docTheme,
+      varDefs: base ? (base.varDefs||[]) : [],
+      palettes: [{ name:'Default', vars }]
+    };
+    cfg.docTheme = id; cfg.themeVars = {...vars};
+    document.getElementById('st-theme-name').value = '';
+    applyStyles(); stRenderThemeSelect(); stRenderPresets(); stRenderVars();
+  };
+}
+
+function stRenderPresets() {
+  const wrap = document.getElementById('st-presets-wrap');
+  const cont = document.getElementById('st-presets');
+  if (!cont) return;
+  const def      = THEME_DEFS[cfg.docTheme] || customThemes[cfg.docTheme];
+  const palettes = def ? (def.palettes||[]) : [];
+  wrap.style.display = palettes.length ? '' : 'none';
+  cont.innerHTML = '';
+  palettes.forEach(p => {
+    const btn = document.createElement('button');
+    btn.className = 'btn';
+    btn.style.cssText = 'font-size:10px;padding:4px 10px;display:flex;align-items:center;gap:5px;';
+    const dots = Object.values(p.vars).slice(0,4).map(c =>
+      `<span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${c};border:1px solid #666;"></span>`
+    ).join('');
+    btn.innerHTML = `${dots}<span>${p.name}</span>`;
+    btn.title     = p.name;
+    btn.onclick   = () => { cfg.themeVars = {...p.vars}; applyStyles(); stRenderVars(); };
+    cont.appendChild(btn);
+  });
+}
+
+function stRenderVars() {
+  const cont = document.getElementById('st-vars'); if (!cont) return;
+  cont.innerHTML = '';
+  const def = THEME_DEFS[cfg.docTheme] || customThemes[cfg.docTheme];
+  if (!def || !def.varDefs || !def.varDefs.length) {
+    cont.innerHTML = '<span style="font-size:10px;color:var(--text3);">No theme variables for this theme.</span>';
+    return;
+  }
+  if (!cfg.themeVars) cfg.themeVars = {};
+  const palette0 = def.palettes && def.palettes[0] ? def.palettes[0].vars : {};
+  def.varDefs.forEach(({ key, label }) => {
+    const current = cfg.themeVars[key] || palette0[key] || '#888888';
+    const row     = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:center;gap:7px;padding:3px 0;border-bottom:1px solid var(--border);';
+
+    const swatch = document.createElement('div');
+    swatch.style.cssText = `width:18px;height:18px;border-radius:2px;border:1px solid var(--border2);background:${current};flex-shrink:0;cursor:pointer;`;
+    swatch.title  = `Edit ${label}`;
+    swatch.onclick = () => {
+      stOpenPicker(cfg.themeVars[key] || palette0[key] || '#888888', hex => {
+        cfg.themeVars[key]        = hex;
+        swatch.style.background   = hex;
+        hexIn.value               = hex;
+        applyStyles();
+      });
+    };
+
+    const lbl = document.createElement('span');
+    lbl.textContent    = label;
+    lbl.style.cssText  = 'flex:1;font-size:11px;color:var(--text2);';
+
+    const hexIn = document.createElement('input');
+    hexIn.type      = 'text'; hexIn.value = current; hexIn.maxLength = 7;
+    hexIn.style.cssText = 'width:68px;background:var(--bg3);border:1px solid var(--border);color:var(--text);font-family:var(--font-mono);font-size:10px;padding:2px 5px;outline:none;flex-shrink:0;';
+    hexIn.oninput = e => {
+      const v = e.target.value.trim();
+      if (!/^#[0-9a-fA-F]{3,6}$/.test(v)) return;
+      cfg.themeVars[key]      = v;
+      swatch.style.background = v;
+      applyStyles();
+    };
+
+    row.appendChild(swatch); row.appendChild(lbl); row.appendChild(hexIn);
+    cont.appendChild(row);
+  });
+}
+
+stInitPickerControls();
+
+/* =========================================================
+   INIT
+   Restore state from an embedded data-saved attribute (present in
+   "Export with Editor" files) or from frontmatter in the textarea.
+   ========================================================= */
+(function init() {
+  // Read last-export metadata embedded in the exported HTML comment.
+  const srcHtml        = document.documentElement.outerHTML;
+  const metaCommentMatch = srcHtml.match(/<!--\s*DOCUMENT METADATA([\s\S]*?)-->/);
+  if (metaCommentMatch) {
+    const block      = metaCommentMatch[1];
+    const localMatch = block.match(/last-edited-local:\s*(.+)/);
+    const themeMatch = block.match(/editor-theme:\s*(.+)/);
+    const typeMatch  = block.match(/export-type:\s*(.+)/);
+    if (localMatch) {
+      const el = document.getElementById('s-last-export');
+      if (el) {
+        const type = typeMatch ? typeMatch[1].trim().toUpperCase() : 'HTML';
+        el.textContent = `EXPORTED ${type} -- ${localMatch[1].trim()}`;
+        el.style.display = 'inline';
+      }
+    }
+    if (themeMatch && !document.body.getAttribute('data-saved')) {
+      cfg.theme = themeMatch[1].trim();
+    }
+  }
+
+  // data-saved is injected by exportEditor() into exported bundles.
+  const saved = document.body.getAttribute('data-saved');
+  if (saved) {
+    try {
+      const r = JSON.parse(saved);
+      Object.assign(cfg, r);
+      if (r.markup)   { markup = r.markup; document.getElementById('markup-select').value = markup; }
+      if (r.viewMode) { viewMode = r.viewMode; }
+      document.body.setAttribute('data-theme', cfg.theme);
+    } catch(e) {}
+  }
+
+  const { meta } = parseFrontmatter(ed.value);
+  if (Object.keys(meta).length > 0) applyMeta(meta);
+
+  document.querySelectorAll('[data-doc-theme]').forEach(b =>
+    b.classList.toggle('active', b.dataset.docTheme === cfg.docTheme));
+
+  syncUI(); applyStyles(); setView(viewMode); status(); render();
+})();
+</script>
+</body>
+</html>
