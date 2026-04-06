@@ -1730,13 +1730,14 @@ function applyStyles() {
     pp.style.background = '';
   }
   // Named themes control their own color/font via CSS; only apply inline overrides for default theme.
+  // Line-height is always applied so the setting is live regardless of theme.
+  pi.style.lineHeight = cfg.lh;
   if (cfg.docTheme === 'default') {
     pi.style.color      = cfg.cfg;
     pi.style.fontFamily = cfg.bfont;
     pi.style.fontSize   = cfg.fsize;
-    pi.style.lineHeight = cfg.lh;
   } else {
-    pi.style.color = pi.style.fontFamily = pi.style.fontSize = pi.style.lineHeight = '';
+    pi.style.color = pi.style.fontFamily = pi.style.fontSize = '';
   }
   document.documentElement.style.setProperty('--col-w', cfg.colw);
   document.documentElement.style.setProperty('--accent', cfg.cac || cfg.clk);
@@ -1833,11 +1834,13 @@ function buildExportCSS(bgOverride, fgOverride) {
     const d = THEME_DEFS.werx.palettes[0].vars;
     const v = k => tv[k] || d[k];
     themeCSS = `
-body{background:${v('--wx-bg')};color:${v('--wx-fg')};font-family:Helvetica,Verdana,Arial,'Liberation Sans',FreeSans,sans-serif;font-size:84%;}
+body{background:${v('--wx-bg')};color:${v('--wx-fg')};font-family:Helvetica,Verdana,Arial,'Liberation Sans',FreeSans,sans-serif;font-size:84%;line-height:${cfg.lh};}
 a{color:${v('--wx-accent')};text-decoration:none;}
 a:hover{text-decoration:underline;}
 h1,h2{color:${v('--wx-accent')};font-weight:bold;border-bottom:2px solid ${v('--wx-accent')};margin:2em 0 0;}
 h3,h4,h5,h6{color:${v('--wx-accent')};font-weight:bold;margin:2em 0 0;}
+p{margin:.8em 0;}
+ul,ol{margin:.8em 0;padding-left:2em;}li{margin:.3em 0;}
 table{width:100%;border-collapse:collapse;border:1px solid rgba(128,128,128,.5);}
 th{background:${v('--wx-super')};color:${v('--wx-supertxt')};padding:6px 12px;text-align:left;}
 td{padding:6px 12px;}
@@ -1855,7 +1858,7 @@ body{background-color:${v('--qx-bg')};background-image:
   linear-gradient(45deg,transparent 75%,#e5e7eb 75%),
   linear-gradient(-45deg,transparent 75%,#e5e7eb 75%);
   background-size:20px 20px;background-position:0 0,0 10px,10px -10px,-10px 0;
-  color:${v('--qx-fg')};font-family:'JetBrains Mono','Courier New',monospace;font-size:13px;}
+  color:${v('--qx-fg')};font-family:'JetBrains Mono','Courier New',monospace;font-size:13px;line-height:${cfg.lh};}
 a{text-decoration:underline;text-decoration-thickness:2px;text-decoration-color:${v('--qx-accent')};color:inherit;}
 a:hover{background-color:${v('--qx-accent')};color:black;}
 h1{font-size:2rem;font-weight:bold;text-transform:uppercase;letter-spacing:-1px;
