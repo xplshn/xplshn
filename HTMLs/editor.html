@@ -1723,10 +1723,21 @@ function applyStyles() {
   pp.style.setProperty('--text2',          cfg.cfg + 'aa');
   pp.style.setProperty('--text3',          cfg.cfg + '66');
   pp.style.background  = cfg.cbg;
-  pi.style.color       = cfg.cfg;
-  pi.style.fontFamily  = cfg.bfont;
-  pi.style.fontSize    = cfg.fsize;
-  pi.style.lineHeight  = cfg.lh;
+  // Named themes set their own background via CSS class; only force bg for default theme.
+  if (cfg.docTheme === 'default') {
+    pp.style.background = cfg.cbg;
+  } else {
+    pp.style.background = '';
+  }
+  // Named themes control their own color/font via CSS; only apply inline overrides for default theme.
+  if (cfg.docTheme === 'default') {
+    pi.style.color      = cfg.cfg;
+    pi.style.fontFamily = cfg.bfont;
+    pi.style.fontSize   = cfg.fsize;
+    pi.style.lineHeight = cfg.lh;
+  } else {
+    pi.style.color = pi.style.fontFamily = pi.style.fontSize = pi.style.lineHeight = '';
+  }
   document.documentElement.style.setProperty('--col-w', cfg.colw);
   document.documentElement.style.setProperty('--accent', cfg.cac || cfg.clk);
 
