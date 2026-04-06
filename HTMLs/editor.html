@@ -847,10 +847,12 @@ async function ensureLib(name) {
 
   if (lib.esm) {
     // Create a blob URL from cached source so dynamic import() can load it.
+    // NOTE: do NOT revoke the URL -- mermaid (and other chunked ESM bundles)
+    // lazy-import their own sub-modules via the same blob URL origin after the
+    // top-level import resolves. Revoking it early silently breaks those fetches.
     const blob = new Blob([cached], { type: 'application/javascript' });
     const url  = URL.createObjectURL(blob);
     const mod  = await import(url);
-    URL.revokeObjectURL(url);
     LIB_MOD[name] = mod;
     if (name === 'mermaid') {
       window.mermaid = mod.default;
@@ -1107,7 +1109,7 @@ async function postProcess(src, libs) {
       div.textContent = block.textContent;
       block.parentElement.replaceWith(div);
     });
-    if (window.mermaid) mermaid.run({ nodes: pi.querySelectorAll('.mermaid') });
+    if (window.mermaid) await mermaid.run({ nodes: pi.querySelectorAll('.mermaid') });
   }
 
   if (libs.chartjs) {
