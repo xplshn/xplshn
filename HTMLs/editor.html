@@ -846,13 +846,12 @@ async function ensureLib(name) {
   if (!cached) cached = await fetchAndCache(name);
 
   if (lib.esm) {
-    // Create a blob URL from cached source so dynamic import() can load it.
-    // NOTE: do NOT revoke the URL -- mermaid (and other chunked ESM bundles)
-    // lazy-import their own sub-modules via the same blob URL origin after the
-    // top-level import resolves. Revoking it early silently breaks those fetches.
-    const blob = new Blob([cached], { type: 'application/javascript' });
-    const url  = URL.createObjectURL(blob);
-    const mod  = await import(url);
+    // ESM bundles like mermaid use relative specifiers for their chunk files
+    // (e.g. './mermaid-b92f6f74.js'). Blob URLs have no hierarchical base path,
+    // so relative resolution always fails with "base scheme isn't hierarchical".
+    // The blob/cache approach cannot work for chunked ESM -- import directly
+    // from the CDN URL so the browser resolves chunks against that origin.
+    const mod = await import(/* webpackIgnore: true */ lib.url);
     LIB_MOD[name] = mod;
     if (name === 'mermaid') {
       window.mermaid = mod.default;
@@ -1696,7 +1695,9 @@ function syncUI() {
   if (m) { const r = document.getElementById('si-imgmax-range'); if (r) r.value = m[1]; }
   const sc = (c, h, v) => {
     const cel = document.getElementById(c), hel = document.getElementById(h);
-    if (cel) cel.value = v; if (hel) hel.value = v;
+    if (hel) hel.value = v;
+    // type="color" requires a valid #rrggbb -- skip empty/invalid values
+    if (cel && /^#[0-9a-fA-F]{6}$/.test(v)) cel.value = v;
   };
   sc('sc-bg','sh-bg',cfg.cbg); sc('sc-fg','sh-fg',cfg.cfg);
   sc('sc-lk','sh-lk',cfg.clk); sc('sc-br','sh-br',cfg.cbr); sc('sc-ac','sh-ac',cfg.cac||cfg.clk);
