@@ -1125,6 +1125,20 @@ async function postProcess(src, libs) {
   }
 
   if (libs.d3) await ensureLib('d3');
+
+  // Per-image props via title: ![alt](url "width=300px align=right")
+  // Overrides global imgmax/imgalign when present.
+  pi.querySelectorAll('img[title]').forEach(img => {
+    const props = {};
+    const rest  = img.getAttribute('title').replace(/(\w+)=(\S+)/g, (_, k, v) => { props[k] = v; return ''; }).trim();
+    if (!Object.keys(props).length) return;
+    if (props.width)  img.style.maxWidth = props.width;
+    if (props.height) img.style.height   = props.height;
+    if (props.align === 'center') { img.style.display = 'block'; img.style.margin = '0 auto'; }
+    else if (props.align === 'left')  { img.style.float = 'left';  img.style.marginRight = '1em'; }
+    else if (props.align === 'right') { img.style.float = 'right'; img.style.marginLeft  = '1em'; }
+    if (rest) img.title = rest; else img.removeAttribute('title');
+  });
 }
 
 /* =========================================================
@@ -1357,6 +1371,19 @@ function domToMarkup(container) {
   return parts.join('\n\n').trimEnd();
 }
 
+function imgMarkup(el) {
+  const src   = el.getAttribute('src') || el.src;
+  const parts = [];
+  if (el.style.maxWidth  && el.style.maxWidth  !== (cfg.imgmax||'100%')) parts.push(`width=${el.style.maxWidth}`);
+  if (el.style.height    && el.style.height    !== 'auto')               parts.push(`height=${el.style.height}`);
+  const align = el.style.float || (el.style.display === 'block' ? 'center' : '');
+  const globalAlign = cfg.imgalign || '';
+  if (align && align !== globalAlign) parts.push(`align=${align}`);
+  const title = el.getAttribute('title') || '';
+  const fullTitle = parts.length ? parts.join(' ') + (title ? ' ' + title : '') : title;
+  return `![${el.alt||''}](${src}${fullTitle ? ` "${fullTitle}"` : ''})`;
+}
+
 function elemToMarkup(el) {
   const t = el.tagName;
   if (/^H([1-6])$/.test(t)) return '#'.repeat(+t[1]) + ' ' + innerMixed(el);
@@ -1378,7 +1405,7 @@ function elemToMarkup(el) {
     return cap ? `![${img.alt||''}](${img.getAttribute('src')||img.src})\n\n_${cap}_`
                : `![${img.alt||''}](${img.getAttribute('src')||img.src})`;
   }
-  if (t === 'IMG') return `![${el.alt||''}](${el.getAttribute('src')||el.src})`;
+  if (t === 'IMG') return imgMarkup(el);
   return domToMarkup(el);
 }
 
@@ -1407,7 +1434,7 @@ function inlineMarkup(n) {
   if (t === 'A')                   return `[${inner}](${n.getAttribute('href')||''})`;
   if (t === 'BR')                  return '\n';
   // getAttribute avoids browser absolutizing relative URLs.
-  if (t === 'IMG')                 return `![${n.alt||''}](${n.getAttribute('src')||n.src})`;
+  if (t === 'IMG')                 return imgMarkup(n);
   if (t === 'SPAN')                return inner;
   return inner;
 }
