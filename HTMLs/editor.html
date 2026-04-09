@@ -125,7 +125,7 @@ body.wysiwyg-mode #wysiwyg-banner { display: block; }
 
 #preview-inner {
   max-width: var(--col-w); margin: 0 auto;
-  color: var(--preview-fg); font-family: var(--font-serif); font-size: 15px; line-height: 1.7;
+  color: var(--preview-fg); font-family: var(--font-serif); font-size: 1rem; line-height: 1.7;
   outline: none;
 }
 
@@ -183,7 +183,44 @@ body.wysiwyg-mode .wy-add-row { display: block; }
 #preview-inner figure { margin: 1em 0; }
 #preview-inner figcaption { font-size: 0.85em; color: var(--text2); font-style: italic; text-align: center; margin-top: 0.25em; }
 
-/* --- cover page styles: shared layout patterns --- */
+/* --- cover page styles: shared layout patterns ---
+   Cover CSS uses generic --preview-* and --accent vars.
+   When a named doc-theme is active on #preview-pane, the blocks below
+   remap those vars on #doc-cover so the cover automatically adopts
+   the theme's own palette without any per-theme cover CSS duplication. --- */
+
+/* WERX cover: remap preview vars to wx vars */
+.theme-werx #doc-cover {
+  --preview-fg:     var(--wx-fg,     #000000);
+  --preview-border: var(--wx-accent, #0066cc);
+  --preview-bg:     var(--wx-bg,     #ffffff);
+  --accent:         var(--wx-accent, #0066cc);
+  --text2:          var(--wx-fg,     #000000);
+  --text3:          color-mix(in srgb, var(--wx-fg, #000000) 50%, transparent);
+}
+
+/* Quixotist cover: remap preview vars to qx vars */
+.theme-quixotist #doc-cover {
+  --preview-fg:     var(--qx-fg,     #2b2b2b);
+  --preview-border: var(--qx-accent, #ffcc00);
+  --preview-bg:     var(--qx-bg,     #f4f4f6);
+  --accent:         var(--qx-accent, #ffcc00);
+  --text2:          var(--qx-fg,     #2b2b2b);
+  --text3:          color-mix(in srgb, var(--qx-fg, #2b2b2b) 50%, transparent);
+}
+/* Quixotist cover wrapper inherits the patterned bg */
+.theme-quixotist #doc-cover .cover-bunker-wrapper {
+  background-color: var(--qx-bg, #f4f4f6);
+  background-image:
+    linear-gradient(45deg, #e5e7eb 25%, transparent 25%),
+    linear-gradient(-45deg, #e5e7eb 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #e5e7eb 75%),
+    linear-gradient(-45deg, transparent 75%, #e5e7eb 75%);
+  background-size: 20px 20px;
+  background-position: 0 0, 0 10px, 10px -10px, -10px 0;
+}
+
+/* --- cover page layout patterns (theme-neutral, use --preview-* vars) --- */
 .cover-default {
   flex: 1; display: flex; flex-direction: column; justify-content: space-between;
   font-family: var(--font-serif);
@@ -201,7 +238,7 @@ body.wysiwyg-mode .wy-add-row { display: block; }
 }
 .cover-sleek .cover-top { border-left: 6px solid var(--accent); padding-left: 1em; }
 .cover-sleek .cover-top h1 { font-size: 2em; text-transform: uppercase; letter-spacing: -0.02em; margin: 0 0 0.4em; color: var(--preview-fg); }
-.cover-sleek .cover-top .accent-bar { height: 3px; width: 60px; background: var(--accent); margin: 0.5em 0 1em; }
+.cover-sleek .cover-top .accent-bar { height: 0.2em; width: 3.75em; background: var(--accent); margin: 0.5em 0 1em; }
 .cover-sleek .cover-top .subtitle { font-size: 1em; color: var(--text2); margin: 0 0 1em; }
 .cover-sleek .cover-top .abstract { font-size: 0.85em; border: 1px solid var(--preview-border); padding: 1em; margin: 1em 0; background: rgba(128,128,128,0.04); }
 .cover-sleek .cover-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 1em; border-top: 2px solid var(--preview-fg); padding-top: 1em; font-size: 0.8em; margin-top: auto; }
@@ -227,7 +264,7 @@ body.wysiwyg-mode .wy-add-row { display: block; }
 
 .cover-modern {
   flex: 1; display: flex; flex-direction: column; justify-content: space-between;
-  font-family: var(--font-mono); border-left: 10px solid var(--preview-fg);
+  font-family: var(--font-mono); border-left: 0.6em solid var(--preview-fg);
   padding-left: 1.5em;
 }
 .cover-modern h1 { font-size: 2em; text-transform: uppercase; letter-spacing: 0.05em; color: var(--preview-fg); margin: 0 0 0.5em; }
@@ -235,6 +272,23 @@ body.wysiwyg-mode .wy-add-row { display: block; }
 .cover-modern .abstract { font-size: 0.85em; padding: 1em; background: rgba(128,128,128,0.06); margin: 1em 0; border-right: 3px solid var(--accent); }
 .cover-modern .cover-meta { display: flex; gap: 2em; font-size: 0.8em; border-top: 1px solid var(--preview-border); padding-top: 0.8em; margin-top: auto; }
 .cover-modern .cover-meta-label { text-transform: uppercase; letter-spacing: 0.08em; color: var(--text3); font-size: 0.7em; }
+
+/* --- preview-pane: hard-isolate from editor-chrome CSS vars.
+   Custom properties set to a guaranteed-invalid sentinel ("") so any rule inside
+   that references an old editor var gets its fallback, not the body-inherited value.
+   Preview colors come exclusively from --preview-* vars injected by applyStyles()
+   and from named doc-theme classes (theme-werx, theme-quixotist, etc.). --- */
+#preview-pane {
+  /* Reset editor chrome vars to empty (guaranteed-invalid for custom properties)
+     so fallbacks in consumer rules fire rather than inheriting from body[data-theme]. */
+  --bg: ; --bg2: ; --bg3: ; --bg4: ;
+  --border: ; --border2: ;
+  --text: ; --text2: ; --text3: ;
+  --accent: ;
+  /* Baseline font stacks — these are layout-neutral and safe here */
+  --font-mono: 'Courier New', Courier, monospace;
+  --font-serif: 'Times New Roman', Times, serif;
+}
 
 /* --- WERX theme: faithful port from werx/static/css/style.css
    --wx-super   = super-accent    --wx-supertxt = super-text
@@ -375,6 +429,110 @@ body.wysiwyg-mode .wy-add-row { display: block; }
 .btn:hover { border-color: var(--accent); color: var(--text); }
 .btn-p { border-color: var(--accent); color: var(--accent); }
 .btn-p:hover { background: var(--accent); color: var(--bg); }
+
+/* --- diagram centering: mermaid, chartjs, d3 --- */
+#preview-inner .mermaid            { display: flex; justify-content: center; margin: 1.2em 0; }
+#preview-inner .mermaid svg        { max-width: 100%; height: auto; }
+#preview-inner canvas              { display: block; margin-left: auto; margin-right: auto; }
+#preview-inner .inline-chart-wrap  { display: flex; justify-content: center; margin: 1.2em 0; }
+
+/* --- diagram clickable cursor + expand hint --- */
+#preview-inner .mermaid { cursor: zoom-in; position: relative; }
+#preview-inner .mermaid::after {
+  content: '⤢ expand';
+  position: absolute; bottom: 0.4em; right: 0.5em;
+  font-family: var(--font-mono); font-size: 0.7em; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--text3); opacity: 0;
+  transition: opacity 120ms; pointer-events: none;
+}
+#preview-inner .mermaid:hover::after { opacity: 1; }
+
+/* --- diagram expand viewer modal --- */
+#diag-viewer {
+  display: none; position: fixed; inset: 0; z-index: 500;
+  background: rgba(0,0,0,0.82); align-items: center; justify-content: center;
+  cursor: zoom-out;
+}
+#diag-viewer.active { display: flex; }
+#diag-viewer-inner {
+  background: var(--bg2); border: 1px solid var(--border2);
+  padding: 1.5em; max-width: 95vw; max-height: 92vh;
+  overflow: auto; position: relative; cursor: default;
+}
+#diag-viewer-inner svg { max-width: 100%; height: auto; display: block; }
+#diag-viewer-close {
+  position: absolute; top: 0.4em; right: 0.6em;
+  background: none; border: none; color: var(--text2); cursor: pointer;
+  font-family: var(--font-mono); font-size: 1.2em; line-height: 1; padding: 0.15em 0.4em;
+}
+#diag-viewer-close:hover { color: var(--text); }
+/* zoom controls in viewer */
+#diag-viewer-zoom {
+  position: absolute; bottom: 0.6em; right: 0.6em;
+  display: flex; gap: 0.3em;
+}
+#diag-viewer-zoom button {
+  background: var(--bg3); border: 1px solid var(--border2); color: var(--text2);
+  cursor: pointer; font-family: var(--font-mono); font-size: 1em; line-height: 1;
+  padding: 0.2em 0.5em; min-width: 2em; text-align: center;
+}
+#diag-viewer-zoom button:hover { color: var(--text); border-color: var(--accent); }
+#diag-viewer-content { transition: transform 150ms ease; transform-origin: top center; }
+
+/* ============================================================
+   MULTI-COLUMN / NEWSPAPER LAYOUT CLASSES
+   Usage in markdown/djot:
+     <div class="col-2"> ... </div>   — 2 columns
+     <div class="col-3"> ... </div>   — 3 columns
+     <div class="col-4"> ... </div>   — 4 columns
+     <div class="col-break"></div>    — force column break
+     <div class="col-span"></div>     — spans all columns (e.g. for subheadings)
+   Newspaper-style extras:
+     class="dropcap"    on a <p> — large drop cap on first letter
+     class="pullquote"  on a <blockquote> — centred pull quote
+     class="col-rule"   add column rules/borders between columns
+   ============================================================ */
+#preview-inner .col-2,
+#preview-inner .col-3,
+#preview-inner .col-4 {
+  column-gap: 2em;
+  orphans: 3; widows: 3;
+  margin: 1.2em 0;
+}
+#preview-inner .col-2  { column-count: 2; }
+#preview-inner .col-3  { column-count: 3; }
+#preview-inner .col-4  { column-count: 4; }
+
+/* Column rules (borders between columns) */
+#preview-inner .col-rule.col-2,
+#preview-inner .col-rule.col-3,
+#preview-inner .col-rule.col-4 {
+  column-rule: thin solid var(--preview-border);
+}
+
+/* Force a column break */
+#preview-inner .col-break { break-before: column; height: 0; margin: 0; padding: 0; }
+
+/* Span element across all columns */
+#preview-inner .col-span  { column-span: all; border-bottom: 1px solid var(--preview-border); margin: 0.6em 0 1em; padding-bottom: 0.4em; }
+
+/* Drop cap paragraph */
+#preview-inner p.dropcap::first-letter {
+  float: left; font-size: 3.6em; line-height: 0.78; font-weight: bold;
+  margin: 0.08em 0.1em 0 0; font-family: var(--font-serif);
+  color: var(--preview-fg);
+}
+
+/* Pull quote */
+#preview-inner .pullquote {
+  column-span: all;
+  text-align: center; font-size: 1.4em; font-style: italic;
+  border-top: 2px solid var(--preview-border);
+  border-bottom: 2px solid var(--preview-border);
+  padding: 0.6em 1em; margin: 1em 0;
+  color: var(--preview-fg);
+}
+#preview-inner .pullquote p { margin: 0; }
 
 /* --- scrollbars --- */
 ::-webkit-scrollbar       { width: 6px; height: 6px; }
@@ -580,11 +738,76 @@ body.wysiwyg-mode .wy-add-row { display: block; }
     </div>
     <div class="s-section">
       <div class="s-title">Colors</div>
-      <div class="s-row"><span class="s-label">Background</span><input type="color" class="s-color" id="sc-bg" value="#0d0d0d"><input class="s-input" id="sh-bg" type="text" value="#0d0d0d" style="flex:1"></div>
-      <div class="s-row"><span class="s-label">Foreground</span><input type="color" class="s-color" id="sc-fg" value="#cccccc"><input class="s-input" id="sh-fg" type="text" value="#cccccc" style="flex:1"></div>
-      <div class="s-row"><span class="s-label">Link color</span><input type="color" class="s-color" id="sc-lk" value="#c8a96e"><input class="s-input" id="sh-lk" type="text" value="#c8a96e" style="flex:1"></div>
-      <div class="s-row"><span class="s-label">Border color</span><input type="color" class="s-color" id="sc-br" value="#2a2a2a"><input class="s-input" id="sh-br" type="text" value="#2a2a2a" style="flex:1"></div>
-      <div class="s-row"><span class="s-label">Accent color</span><input type="color" class="s-color" id="sc-ac" value="#c8a96e"><input class="s-input" id="sh-ac" type="text" value="#c8a96e" style="flex:1"></div>
+      <div class="s-row"><span class="s-label">Background</span><input type="color" class="s-color" id="sc-bg" value="#ffffff"><input class="s-input" id="sh-bg" type="text" value="#ffffff" style="flex:1"></div>
+      <div class="s-row"><span class="s-label">Foreground</span><input type="color" class="s-color" id="sc-fg" value="#111111"><input class="s-input" id="sh-fg" type="text" value="#111111" style="flex:1"></div>
+      <div class="s-row"><span class="s-label">Link color</span><input type="color" class="s-color" id="sc-lk" value="#1a56a0"><input class="s-input" id="sh-lk" type="text" value="#1a56a0" style="flex:1"></div>
+      <div class="s-row"><span class="s-label">Border color</span><input type="color" class="s-color" id="sc-br" value="#cccccc"><input class="s-input" id="sh-br" type="text" value="#cccccc" style="flex:1"></div>
+      <div class="s-row"><span class="s-label">Accent color</span><input type="color" class="s-color" id="sc-ac" value="#1a56a0"><input class="s-input" id="sh-ac" type="text" value="#1a56a0" style="flex:1"></div>
+    </div>
+    <div class="s-section">
+      <div class="s-title">Diagrams</div>
+      <div class="s-row">
+        <span class="s-label">Center diagrams</span>
+        <input type="checkbox" id="si-diag-center" checked style="accent-color:var(--accent);width:16px;height:16px;cursor:pointer;">
+      </div>
+      <div class="s-row">
+        <span class="s-label">Click to expand</span>
+        <input type="checkbox" id="si-diag-expand" checked style="accent-color:var(--accent);width:16px;height:16px;cursor:pointer;">
+      </div>
+      <div class="s-row">
+        <span class="s-label">Fit / overflow</span>
+        <select class="s-select" id="si-diag-wrap">
+          <option value="auto">Auto (wrap long text)</option>
+          <option value="scroll">Scroll (no wrap)</option>
+          <option value="scale">Scale to fit width</option>
+        </select>
+      </div>
+      <div class="s-row">
+        <span class="s-label">Flow direction</span>
+        <select class="s-select" id="si-diag-rankdir">
+          <option value="TD">Top → Down (default)</option>
+          <option value="LR">Left → Right</option>
+          <option value="BT">Bottom → Top</option>
+          <option value="RL">Right → Left</option>
+        </select>
+      </div>
+      <div class="s-row">
+        <span class="s-label">Mermaid theme</span>
+        <select class="s-select" id="si-diag-theme">
+          <option value="dark">Dark</option>
+          <option value="default">Default</option>
+          <option value="neutral">Neutral</option>
+          <option value="base">Base</option>
+          <option value="forest">Forest</option>
+        </select>
+      </div>
+      <div class="s-row">
+        <span class="s-label">Edge curve</span>
+        <select class="s-select" id="si-diag-curve">
+          <option value="basis">Basis (smooth)</option>
+          <option value="linear">Linear</option>
+          <option value="step">Step</option>
+          <option value="stepBefore">Step before</option>
+          <option value="stepAfter">Step after</option>
+          <option value="cardinal">Cardinal</option>
+          <option value="monotoneX">Monotone X</option>
+        </select>
+      </div>
+      <div class="s-row">
+        <span class="s-label">Node spacing</span>
+        <input class="s-input" id="si-diag-nodespacing" type="number" min="10" max="200" value="50" style="width:4em;flex:none;">
+        <span style="font-size:0.75em;color:var(--text3);padding-left:0.3em;">unit</span>
+      </div>
+      <div class="s-row">
+        <span class="s-label">Rank spacing</span>
+        <input class="s-input" id="si-diag-rankspacing" type="number" min="10" max="300" value="50" style="width:4em;flex:none;">
+        <span style="font-size:0.75em;color:var(--text3);padding-left:0.3em;">unit</span>
+      </div>
+      <div class="s-row">
+        <span class="s-label">Diagram padding</span>
+        <input class="s-input" id="si-diag-padding" type="number" min="0" max="60" value="8" style="width:4em;flex:none;">
+        <span style="font-size:10px;color:var(--text3);padding-left:4px;">px</span>
+      </div>
     </div>
     <div class="s-section">
       <div class="s-title">PDF / Print</div>
@@ -712,6 +935,20 @@ body.wysiwyg-mode .wy-add-row { display: block; }
   </div>
 </div>
 
+<!-- DIAGRAM EXPAND VIEWER -->
+<div id="diag-viewer">
+  <div id="diag-viewer-inner">
+    <button id="diag-viewer-close" title="Close (Esc)">×</button>
+    <div id="diag-viewer-content"></div>
+    <div id="diag-viewer-zoom">
+      <button id="diag-zoom-out" title="Zoom out (click diagram to zoom in)">−</button>
+      <span id="diag-zoom-label" style="font-family:var(--font-mono);font-size:0.75em;color:var(--text2);padding:0.2em 0.4em;line-height:1.8;">100%</span>
+      <button id="diag-zoom-in" title="Zoom in">+</button>
+      <button id="diag-zoom-reset" title="Reset zoom">⊙</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL -->
 <div id="modal-overlay">
   <div class="modal">
@@ -740,11 +977,14 @@ const CFG_DEFAULTS = {
   colw:'65ch',
   bfont:'Times New Roman, Times, serif', hfont:'Courier New, Courier, monospace',
   fsize:'1rem', lh:'1.7',
-  cbg:'#0d0d0d', cfg:'#cccccc', clk:'#c8a96e', cbr:'#2a2a2a', cac:'#c8a96e',
+  cbg:'#ffffff', cfg:'#111111', clk:'#1a56a0', cbr:'#cccccc', cac:'#1a56a0',
   margins:'2cm', pagesize:'A4', theme:'terminus', docTheme:'default',
   imgmax:'100%', imgalign:'', usercss:'', themeVars:{},
   cover:false, coverStyle:'default', coverLogo:'', abstract:'',
   markup:'djot', viewMode:'split',
+  diagCenter:true, diagWrap:'auto', diagExpand:true,
+  diagRankDir:'TD', diagMermaidTheme:'dark', diagCurve:'basis',
+  diagNodeSpacing:50, diagRankSpacing:50, diagPadding:8,
 };
 let cfg = { ...CFG_DEFAULTS };
 
@@ -856,8 +1096,7 @@ async function ensureLib(name) {
     if (name === 'mermaid') {
       window.mermaid = mod.default;
       mermaid.initialize({ startOnLoad: false, theme: 'dark' });
-    }
-  } else {
+    }  } else {
     // Classic script: evaluate inline so it runs in the current context.
     const blob = new Blob([cached], { type: 'text/javascript' });
     const url  = URL.createObjectURL(blob);
@@ -1102,6 +1341,29 @@ async function render() {
 async function postProcess(src, libs) {
   if (libs.mermaid) {
     await ensureLib('mermaid');
+    // Re-initialize with current settings so config is fresh.
+    if (window.mermaid) {
+      const wrapVal = cfg.diagWrap !== 'scroll';
+      mermaid.initialize({
+        startOnLoad: false,
+        theme:       cfg.diagMermaidTheme || 'dark',
+        flowchart: {
+          useMaxWidth:    cfg.diagWrap === 'scale',
+          rankSpacing:    Number(cfg.diagRankSpacing)    || 50,
+          nodeSpacing:    Number(cfg.diagNodeSpacing)    || 50,
+          curve:          cfg.diagCurve                  || 'basis',
+          diagramPadding: Number(cfg.diagPadding)        || 8,
+          htmlLabels:     true,
+        },
+        sequence: {
+          useMaxWidth: cfg.diagWrap === 'scale',
+        },
+        graph: {
+          rankdir: cfg.diagRankDir || 'TD',
+        },
+        wrap: wrapVal,
+      });
+    }
     pi.querySelectorAll('pre code.language-mermaid').forEach(block => {
       const div       = document.createElement('div');
       div.className   = 'mermaid';
@@ -1116,15 +1378,22 @@ async function postProcess(src, libs) {
     pi.querySelectorAll('pre code.language-inlineChartJS').forEach(block => {
       try {
         const chartCfg = JSON.parse(block.textContent);
+        const wrap     = document.createElement('div');
+        wrap.className = 'inline-chart-wrap';
         const canvas   = document.createElement('canvas');
         canvas.style.cssText = 'max-width:100%;height:300px;';
-        block.parentElement.replaceWith(canvas);
+        wrap.appendChild(canvas);
+        block.parentElement.replaceWith(wrap);
         new Chart(canvas, chartCfg);
       } catch(e) { /* leave block as-is on parse error */ }
     });
   }
 
   if (libs.d3) await ensureLib('d3');
+
+  // Apply all diagram display settings (centering, wrap mode, expand click).
+  // Separated so it can be called independently when settings change without re-running mermaid.
+  applyDiagSettings();
 
   // Per-image props via title: ![alt](url "width=300px align=right")
   // Overrides global imgmax/imgalign when present.
@@ -1139,6 +1408,111 @@ async function postProcess(src, libs) {
     else if (props.align === 'right') { img.style.float = 'right'; img.style.marginLeft  = '1em'; }
     if (rest) img.title = rest; else img.removeAttribute('title');
   });
+}
+
+/* =========================================================
+   APPLY DIAGRAM DISPLAY SETTINGS
+   Called after mermaid runs AND directly from settings changes
+   so settings take effect on already-rendered diagrams.
+   ========================================================= */
+
+function applyDiagSettings() {
+  // --- Mermaid ---
+  pi.querySelectorAll('.mermaid').forEach(div => {
+    const svg = div.querySelector('svg');
+
+    // Centering
+    div.style.justifyContent = cfg.diagCenter ? 'center' : 'flex-start';
+
+    // Wrap / scale / scroll mode on the SVG
+    if (svg) {
+      if (cfg.diagWrap === 'scroll') {
+        svg.style.width  = '';
+        svg.style.height = '';
+        div.style.overflowX = 'auto';
+        div.style.flexWrap  = 'nowrap';
+      } else if (cfg.diagWrap === 'scale') {
+        svg.style.width  = '100%';
+        svg.style.height = 'auto';
+        div.style.overflowX = '';
+      } else {
+        // auto: constrain to column width, let mermaid's own viewBox handle it
+        svg.style.maxWidth  = '100%';
+        svg.style.height    = 'auto';
+        svg.style.width     = '';
+        div.style.overflowX = '';
+      }
+    }
+
+    // Click-to-expand
+    div.style.cursor = cfg.diagExpand ? 'zoom-in' : '';
+    div.onclick      = cfg.diagExpand ? () => openDiagViewer(div) : null;
+  });
+
+  // --- ChartJS wrappers ---
+  pi.querySelectorAll('.inline-chart-wrap').forEach(wrap => {
+    wrap.style.justifyContent = cfg.diagCenter ? 'center' : 'flex-start';
+  });
+}
+
+/* =========================================================
+   DIAGRAM EXPAND VIEWER  (with click-to-zoom)
+   ========================================================= */
+
+const diagViewer        = document.getElementById('diag-viewer');
+const diagViewerContent = document.getElementById('diag-viewer-content');
+const diagZoomLabel     = document.getElementById('diag-zoom-label');
+let   diagZoom          = 1;
+const ZOOM_STEP         = 0.25;
+const ZOOM_MIN          = 0.25;
+const ZOOM_MAX          = 4;
+
+document.getElementById('diag-viewer-close').onclick = closeDiagViewer;
+diagViewer.addEventListener('click', e => { if (e.target === diagViewer) closeDiagViewer(); });
+document.addEventListener('keydown', e => {
+  if (!diagViewer.classList.contains('active')) return;
+  if (e.key === 'Escape') closeDiagViewer();
+  if (e.key === '+' || e.key === '=') stepZoom(+ZOOM_STEP);
+  if (e.key === '-') stepZoom(-ZOOM_STEP);
+  if (e.key === '0') resetZoom();
+});
+
+document.getElementById('diag-zoom-in').onclick    = () => stepZoom(+ZOOM_STEP);
+document.getElementById('diag-zoom-out').onclick   = () => stepZoom(-ZOOM_STEP);
+document.getElementById('diag-zoom-reset').onclick = resetZoom;
+
+// Click on the content area toggles zoom between 1× and 2×
+diagViewerContent.addEventListener('click', () => {
+  stepZoom(diagZoom < 2 ? +(2 - diagZoom) : -(diagZoom - 1));
+});
+diagViewerContent.style.cursor = 'zoom-in';
+
+function setZoom(z) {
+  diagZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, z));
+  diagViewerContent.style.transform = `scale(${diagZoom})`;
+  diagViewerContent.style.transformOrigin = 'top center';
+  diagZoomLabel.textContent = Math.round(diagZoom * 100) + '%';
+  diagViewerContent.style.cursor = diagZoom >= ZOOM_MAX ? 'zoom-out' : 'zoom-in';
+}
+function stepZoom(delta) { setZoom(diagZoom + delta); }
+function resetZoom()     { setZoom(1); }
+
+function openDiagViewer(mermaidDiv) {
+  const svg = mermaidDiv.querySelector('svg');
+  if (!svg) return;
+  diagViewerContent.innerHTML = '';
+  const clone = svg.cloneNode(true);
+  clone.style.width    = '';
+  clone.style.height   = '';
+  clone.style.maxWidth = '80vw';
+  clone.style.display  = 'block';
+  diagViewerContent.appendChild(clone);
+  resetZoom();
+  diagViewer.classList.add('active');
+}
+
+function closeDiagViewer() {
+  diagViewer.classList.remove('active');
 }
 
 /* =========================================================
@@ -1683,6 +2057,17 @@ document.getElementById('si-markup').addEventListener('change', e => {
   status(); render();
 });
 
+/* --- diagram settings --- */
+document.getElementById('si-diag-center').addEventListener('change', e => { cfg.diagCenter = e.target.checked; applyDiagSettings(); });
+document.getElementById('si-diag-wrap').addEventListener('change',   e => { cfg.diagWrap   = e.target.value;   render(); }); // needs mermaid re-init
+document.getElementById('si-diag-expand').addEventListener('change', e => { cfg.diagExpand = e.target.checked; applyDiagSettings(); });
+document.getElementById('si-diag-rankdir').addEventListener('change',  e => { cfg.diagRankDir        = e.target.value;           render(); });
+document.getElementById('si-diag-theme').addEventListener('change',    e => { cfg.diagMermaidTheme   = e.target.value;           render(); });
+document.getElementById('si-diag-curve').addEventListener('change',    e => { cfg.diagCurve          = e.target.value;           render(); });
+document.getElementById('si-diag-nodespacing').addEventListener('input',e=>{ cfg.diagNodeSpacing     = e.target.value;           render(); });
+document.getElementById('si-diag-rankspacing').addEventListener('input',e=>{ cfg.diagRankSpacing     = e.target.value;           render(); });
+document.getElementById('si-diag-padding').addEventListener('input',   e => { cfg.diagPadding        = e.target.value;           render(); });
+
 /* --- generic settings input binding --- */
 function bnd(id, key, after) {
   const el = document.getElementById(id); if (!el) return;
@@ -1720,6 +2105,16 @@ function syncUI() {
   f('si-markup', markup);
   const m = (cfg.imgmax||'100%').match(/^(\d+)%$/);
   if (m) { const r = document.getElementById('si-imgmax-range'); if (r) r.value = m[1]; }
+  // Diagram settings
+  const dc = document.getElementById('si-diag-center'); if (dc) dc.checked = cfg.diagCenter !== false;
+  const dw = document.getElementById('si-diag-wrap');   if (dw) dw.value   = cfg.diagWrap  || 'auto';
+  const de = document.getElementById('si-diag-expand'); if (de) de.checked = cfg.diagExpand !== false;
+  f('si-diag-rankdir',    cfg.diagRankDir        || 'TD');
+  f('si-diag-theme',      cfg.diagMermaidTheme   || 'dark');
+  f('si-diag-curve',      cfg.diagCurve          || 'basis');
+  f('si-diag-nodespacing',cfg.diagNodeSpacing     ?? 50);
+  f('si-diag-rankspacing',cfg.diagRankSpacing     ?? 50);
+  f('si-diag-padding',    cfg.diagPadding         ?? 8);
   const sc = (c, h, v) => {
     const cel = document.getElementById(c), hel = document.getElementById(h);
     if (hel) hel.value = v;
@@ -1747,9 +2142,27 @@ function applyStyles() {
   pp.style.setProperty('--preview-fg',     cfg.cfg);
   pp.style.setProperty('--preview-link',   cfg.clk);
   pp.style.setProperty('--preview-border', cfg.cbr);
-  pp.style.setProperty('--text2',          cfg.cfg + 'aa');
-  pp.style.setProperty('--text3',          cfg.cfg + '66');
-  pp.style.background  = cfg.cbg;
+  // Drive --text2/--text3 on the preview pane from the *preview* fg, not editor theme vars
+  pp.style.setProperty('--text2', cfg.cfg + 'aa');
+  pp.style.setProperty('--text3', cfg.cfg + '66');
+  // --accent on the preview pane: use the document accent color (cfg.cac)
+  pp.style.setProperty('--accent', cfg.cac || cfg.clk);
+
+  // Set --accent on editor chrome only (toolbar, panels etc.) — NOT on :root
+  // so it never cascades into preview-pane (which resets --accent above).
+  document.getElementById('app').style.setProperty('--accent', cfg.cac || cfg.clk);
+  // Also set on the settings panel (outside #app) and modal
+  const panel = document.getElementById('settings-panel');
+  if (panel) panel.style.setProperty('--accent', cfg.cac || cfg.clk);
+  const mo = document.getElementById('modal-overlay');
+  if (mo) mo.style.setProperty('--accent', cfg.cac || cfg.clk);
+  // Diagram viewer gets preview accent
+  const dv = document.getElementById('diag-viewer');
+  if (dv) dv.style.setProperty('--accent', cfg.cac || cfg.clk);
+
+  // --col-w is layout-only, safe to set on :root
+  document.documentElement.style.setProperty('--col-w', cfg.colw);
+
   // Named themes set their own background via CSS class; only force bg for default theme.
   if (cfg.docTheme === 'default') {
     pp.style.background = cfg.cbg;
@@ -1766,8 +2179,6 @@ function applyStyles() {
   } else {
     pi.style.color = pi.style.fontFamily = pi.style.fontSize = '';
   }
-  document.documentElement.style.setProperty('--col-w', cfg.colw);
-  document.documentElement.style.setProperty('--accent', cfg.cac || cfg.clk);
 
   pp.className = cfg.docTheme !== 'default' ? `theme-${cfg.docTheme}` : '';
 
@@ -1982,46 +2393,81 @@ function markExported(type) {
    ========================================================= */
 
 function buildCoverCSS() {
-  const fg = cfg.cfg || '#1a1410';
-  const br = cfg.cbr || '#d4ccbc';
-  const ac = cfg.cac || '#8b2020';
+  const fg = cfg.cfg || '#111111';
+  const br = cfg.cbr || '#cccccc';
+  const ac = cfg.cac || '#1a56a0';
+
+  // When a named doc-theme is active, override the cover vars to match.
+  // buildExportCSS already sets --wx-* / --qx-* on body/article, so we can use them here.
+  let themeRemap = '';
+  if (cfg.docTheme === 'werx') {
+    const d = THEME_DEFS.werx.palettes[0].vars;
+    const tv = cfg.themeVars || {};
+    const v = k => tv[k] || d[k];
+    themeRemap = `
+.cover-bunker-wrapper{
+  --preview-fg:${v('--wx-fg')};--preview-border:${v('--wx-accent')};
+  --preview-bg:${v('--wx-bg')};--accent:${v('--wx-accent')};
+  --text2:${v('--wx-fg')};--text3:${v('--wx-fg')}99;
+  background:${v('--wx-bg')};color:${v('--wx-fg')};
+}`;
+  } else if (cfg.docTheme === 'quixotist') {
+    const d = THEME_DEFS.quixotist.palettes[0].vars;
+    const tv = cfg.themeVars || {};
+    const v = k => tv[k] || d[k];
+    themeRemap = `
+.cover-bunker-wrapper{
+  --preview-fg:${v('--qx-fg')};--preview-border:${v('--qx-accent')};
+  --preview-bg:${v('--qx-bg')};--accent:${v('--qx-accent')};
+  --text2:${v('--qx-fg')};--text3:${v('--qx-fg')}99;
+  background-color:${v('--qx-bg')};color:${v('--qx-fg')};
+  background-image:linear-gradient(45deg,#e5e7eb 25%,transparent 25%),
+    linear-gradient(-45deg,#e5e7eb 25%,transparent 25%),
+    linear-gradient(45deg,transparent 75%,#e5e7eb 75%),
+    linear-gradient(-45deg,transparent 75%,#e5e7eb 75%);
+  background-size:20px 20px;background-position:0 0,0 10px,10px -10px,-10px 0;
+}`;
+  }
+
   return `
 /* --- cover page --- */
 .print-cover-container{page-break-after:always;break-after:page;position:relative;}
-.cover-bunker-wrapper{border:4px solid ${fg};display:flex;flex-direction:column;
-  padding:2cm;background:white;position:relative;min-height:80vh;box-sizing:border-box;}
+.cover-bunker-wrapper{border:4px solid var(--preview-fg,${fg});display:flex;flex-direction:column;
+  padding:2cm;background:white;position:relative;min-height:80vh;box-sizing:border-box;
+  --preview-fg:${fg};--preview-border:${br};--accent:${ac};--text2:${fg}aa;--text3:${fg}66;}
+${themeRemap}
 .cover-default{display:flex;flex-direction:column;justify-content:space-between;height:100%;font-family:Georgia,serif;}
-.cover-default .cover-top h1{font-size:2.5em;font-family:Georgia,serif;font-weight:bold;margin:0 0 0.5em;color:${fg};}
-.cover-default .cover-top .abstract{font-size:0.9em;line-height:1.6;padding:1em 1.5em;border-left:3px solid ${br};margin:1.5em 0;font-style:italic;color:${fg};}
-.cover-default .cover-meta{border-top:2px solid ${fg};padding-top:1em;display:flex;justify-content:space-between;align-items:flex-end;font-size:0.85em;margin-top:auto;}
-.cover-default .cover-meta-label{font-size:0.7em;text-transform:uppercase;letter-spacing:0.1em;opacity:0.6;margin-bottom:0.2em;font-family:monospace;}
+.cover-default .cover-top h1{font-size:2.5em;font-family:Georgia,serif;font-weight:bold;margin:0 0 0.5em;color:var(--preview-fg,${fg});}
+.cover-default .cover-top .abstract{font-size:0.9em;line-height:1.6;padding:1em 1.5em;border-left:3px solid var(--preview-border,${br});margin:1.5em 0;font-style:italic;color:var(--preview-fg,${fg});}
+.cover-default .cover-meta{border-top:2px solid var(--preview-fg,${fg});padding-top:1em;display:flex;justify-content:space-between;align-items:flex-end;font-size:0.85em;margin-top:auto;}
+.cover-default .cover-meta-label{font-size:0.7em;text-transform:uppercase;letter-spacing:0.1em;color:var(--text3,${fg}66);margin-bottom:0.2em;font-family:monospace;}
 .cover-default .cover-meta-val{font-weight:bold;font-family:monospace;}
 .cover-sleek{display:flex;flex-direction:column;justify-content:space-between;height:100%;font-family:monospace;}
-.cover-sleek .cover-top{border-left:6px solid ${ac};padding-left:1em;}
-.cover-sleek .cover-top h1{font-size:2em;text-transform:uppercase;letter-spacing:-0.02em;margin:0 0 0.4em;color:${fg};}
-.cover-sleek .cover-top .accent-bar{height:3px;width:60px;background:${ac};margin:0.5em 0 1em;}
-.cover-sleek .cover-top .abstract{font-size:0.85em;border:1px solid ${br};padding:1em;margin:1em 0;background:rgba(128,128,128,0.04);}
-.cover-sleek .cover-meta{display:grid;grid-template-columns:1fr 1fr;gap:1em;border-top:2px solid ${fg};padding-top:1em;font-size:0.8em;margin-top:auto;}
-.cover-sleek .cover-meta-label{font-size:0.7em;text-transform:uppercase;letter-spacing:0.1em;opacity:0.6;margin-bottom:0.2em;}
+.cover-sleek .cover-top{border-left:6px solid var(--accent,${ac});padding-left:1em;}
+.cover-sleek .cover-top h1{font-size:2em;text-transform:uppercase;letter-spacing:-0.02em;margin:0 0 0.4em;color:var(--preview-fg,${fg});}
+.cover-sleek .cover-top .accent-bar{height:3px;width:3.75em;background:var(--accent,${ac});margin:0.5em 0 1em;}
+.cover-sleek .cover-top .abstract{font-size:0.85em;border:1px solid var(--preview-border,${br});padding:1em;margin:1em 0;background:rgba(128,128,128,0.04);}
+.cover-sleek .cover-meta{display:grid;grid-template-columns:1fr 1fr;gap:1em;border-top:2px solid var(--preview-fg,${fg});padding-top:1em;font-size:0.8em;margin-top:auto;}
+.cover-sleek .cover-meta-label{font-size:0.7em;text-transform:uppercase;letter-spacing:0.1em;color:var(--text3,${fg}66);margin-bottom:0.2em;}
 .cover-sleek .cover-meta-val{font-weight:bold;}
 .cover-minimal{display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;height:100%;font-family:Georgia,serif;}
-.cover-minimal h1{font-size:3em;margin:0 0 1em;color:${fg};}
-.cover-minimal .cover-meta{font-size:0.85em;font-family:monospace;text-transform:uppercase;letter-spacing:0.1em;margin-top:2em;opacity:0.6;}
+.cover-minimal h1{font-size:3em;margin:0 0 1em;color:var(--preview-fg,${fg});}
+.cover-minimal .cover-meta{font-size:0.85em;font-family:monospace;text-transform:uppercase;letter-spacing:0.1em;margin-top:2em;color:var(--text3,${fg}66);}
 .cover-classic{display:flex;flex-direction:column;justify-content:flex-start;height:100%;font-family:Georgia,serif;}
-.cover-classic h1{font-size:2.5em;margin:0 0 2em;color:${fg};text-align:left;}
-.cover-classic .abstract{font-size:0.9em;border-top:1px solid ${br};border-bottom:1px solid ${br};padding:1em 0;margin:1em 0;font-style:italic;line-height:1.7;}
+.cover-classic h1{font-size:2.5em;margin:0 0 2em;color:var(--preview-fg,${fg});text-align:left;}
+.cover-classic .abstract{font-size:0.9em;border-top:1px solid var(--preview-border,${br});border-bottom:1px solid var(--preview-border,${br});padding:1em 0;margin:1em 0;font-style:italic;line-height:1.7;}
 .cover-classic .cover-meta{margin-top:auto;font-size:0.85em;font-family:monospace;}
-.cover-classic .cover-meta-label{opacity:0.6;font-size:0.75em;text-transform:uppercase;letter-spacing:0.08em;}
-.cover-modern{display:flex;flex-direction:column;justify-content:space-between;height:100%;font-family:monospace;border-left:10px solid ${fg};padding-left:1.5em;}
-.cover-modern h1{font-size:2em;text-transform:uppercase;letter-spacing:0.05em;color:${fg};margin:0 0 0.5em;}
-.cover-modern .abstract{font-size:0.85em;padding:1em;background:rgba(128,128,128,0.06);margin:1em 0;border-right:3px solid ${ac};}
-.cover-modern .cover-meta{display:flex;gap:2em;font-size:0.8em;border-top:1px solid ${br};padding-top:0.8em;margin-top:auto;}
-.cover-modern .cover-meta-label{text-transform:uppercase;letter-spacing:0.08em;opacity:0.6;font-size:0.7em;}
+.cover-classic .cover-meta-label{color:var(--text3,${fg}66);font-size:0.75em;text-transform:uppercase;letter-spacing:0.08em;}
+.cover-modern{display:flex;flex-direction:column;justify-content:space-between;height:100%;font-family:monospace;border-left:0.6em solid var(--preview-fg,${fg});padding-left:1.5em;}
+.cover-modern h1{font-size:2em;text-transform:uppercase;letter-spacing:0.05em;color:var(--preview-fg,${fg});margin:0 0 0.5em;}
+.cover-modern .abstract{font-size:0.85em;padding:1em;background:rgba(128,128,128,0.06);margin:1em 0;border-right:3px solid var(--accent,${ac});}
+.cover-modern .cover-meta{display:flex;gap:2em;font-size:0.8em;border-top:1px solid var(--preview-border,${br});padding-top:0.8em;margin-top:auto;}
+.cover-modern .cover-meta-label{text-transform:uppercase;letter-spacing:0.08em;color:var(--text3,${fg}66);font-size:0.7em;}
 @media print{
   .print-cover-container{page:cover;page-break-after:always;break-after:page;}
   @page cover{margin:1cm;}
-  .cover-bunker-wrapper{border:4px solid black!important;display:flex!important;flex-direction:column!important;
-    padding:2cm!important;background:white!important;height:calc(297mm - 2cm)!important;min-height:0!important;
+  .cover-bunker-wrapper{border:4px solid var(--preview-fg,black)!important;display:flex!important;flex-direction:column!important;
+    padding:2cm!important;height:calc(297mm - 2cm)!important;min-height:0!important;
     box-sizing:border-box!important;overflow:hidden!important;}
   .cover-default,.cover-sleek,.cover-minimal,.cover-classic,.cover-modern{height:100%!important;flex:1!important;}
   .cover-default .cover-meta,.cover-sleek .cover-meta,.cover-classic .cover-meta,
