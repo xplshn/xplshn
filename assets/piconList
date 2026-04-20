@@ -1,0 +1,1030 @@
+uni0020 :  latin
+uni0021 :  latin
+uni0022 :  latin
+uni0023 :  sign, latin
+uni0024 :  currency, latin
+uni0025 :  latin
+uni0026 :  latin
+uni0027 :  latin
+uni0028 :  latin
+uni0029 :  latin
+uni002A :  latin
+uni002B :  latin
+uni002C :  latin
+uni002D :  latin, sign
+uni002E :  latin
+uni002F :  latin
+uni0030 :  latin
+uni0031 :  latin
+uni0032 :  latin
+uni0033 :  latin
+uni0034 :  latin
+uni0035 :  latin
+uni0036 :  latin
+uni0037 :  latin
+uni0038 :  latin
+uni0039 :  latin
+uni003A :  latin
+uni003B :  latin
+uni003C :  latin
+uni003D :  latin
+uni003E :  latin
+uni003F :  latin, child
+uni0040 :  latin
+uni0041 :  latin
+uni0042 :  latin
+uni0043 :  latin
+uni0044 :  latin
+uni0045 :  latin
+uni0046 :  latin
+uni0047 :  latin
+uni0048 :  latin
+uni0049 :  latin
+uni004A :  latin
+uni004B :  latin
+uni004C :  latin
+uni004D :  latin
+uni004E :  latin
+uni004F :  latin
+uni0050 :  latin
+uni0051 :  latin
+uni0052 :  latin
+uni0053 :  latin
+uni0054 :  latin
+uni0055 :  latin
+uni0056 :  latin
+uni0057 :  latin
+uni0058 :  latin
+uni0059 :  latin
+uni005A :  latin
+uni005B :  latin
+uni005C :  latin
+uni005D :  latin
+uni005E :  latin
+uni005F :  latin
+uni0060 :  latin
+uni0061 :  latin
+uni0062 :  latin
+uni0063 :  latin
+uni0064 :  latin
+uni0065 :  latin
+uni0066 :  latin
+uni0067 :  latin
+uni0068 :  latin
+uni0069 :  latin
+uni006A :  latin
+uni006B :  latin
+uni006C :  latin
+uni006D :  latin
+uni006E :  latin
+uni006F :  latin
+uni0070 :  latin
+uni0071 :  latin
+uni0072 :  latin
+uni0073 :  latin
+uni0074 :  latin
+uni0075 :  latin
+uni0076 :  latin
+uni0077 :  latin
+uni0078 :  latin
+uni0079 :  latin
+uni007A :  latin
+uni007B :  latin
+uni007C :  latin
+uni007D :  latin
+uni007E :  latin
+uni0091 :  latin
+uni0092 :  latin
+uni0095 :  latin
+uni0096 :  latin
+uni0097 :  latin
+uni00A0 :  latin
+uni00A1 :  latin
+uni00A2 :  currency, latin
+uni00A3 :  currency, latin
+uni00A4 :  latin
+uni00A5 :  currency, latin
+uni00A6 :  latin
+uni00A7 :  latin
+uni00A8 :  latin
+uni00A9 :  sign, latin
+uni00AA :  latin
+uni00AB :  latin
+uni00AC :  latin
+uni00AD :  latin
+uni00AE :  latin
+uni00AF :  latin
+uni00B0 :  latin
+uni00B1 :  sign, latin
+uni00B2 :  latin
+uni00B3 :  latin
+uni00B4 :  latin
+uni00B5 :  latin
+uni00B6 :  sign, latin
+uni00B7 :  latin
+uni00B8 :  latin
+uni00B9 :  latin
+uni00BA :  latin
+uni00BB :  latin
+uni00BC :  latin
+uni00BD :  latin
+uni00BE :  latin
+uni00BF :  latin
+uni00C0 :  latin
+uni00C1 :  latin
+uni00C2 :  latin
+uni00C3 :  latin
+uni00C4 :  latin
+uni00C5 :  latin
+uni00C6 :  latin
+uni00C7 :  latin
+uni00C8 :  latin
+uni00C9 :  latin
+uni00CA :  latin
+uni00CB :  latin
+uni00CC :  latin
+uni00CD :  latin
+uni00CE :  latin
+uni00CF :  latin
+uni00D0 :  latin
+uni00D1 :  latin
+uni00D2 :  latin
+uni00D3 :  latin
+uni00D4 :  latin
+uni00D5 :  latin
+uni00D6 :  latin
+times : times cross, latin
+uni00D8 :  latin
+uni00D9 :  latin
+uni00DA :  latin
+uni00DB :  latin
+uni00DC :  latin
+uni00DD :  latin
+uni00DE :  latin
+uni00DF :  latin
+uni00E0 :  latin
+uni00E1 :  latin
+uni00E2 :  latin
+uni00E3 :  latin
+uni00E4 :  latin
+uni00E5 :  latin
+uni00E6 :  latin
+uni00E7 :  latin
+uni00E8 :  latin
+uni00E9 :  latin
+uni00EA :  latin
+uni00EB :  latin
+uni00EC :  latin
+uni00ED :  latin
+uni00EE :  latin
+uni00EF :  latin
+uni00F0 :  latin
+uni00F1 :  latin
+uni00F2 :  latin
+uni00F3 :  latin
+uni00F4 :  latin
+uni00F5 :  latin
+uni00F6 :  latin
+uni00F7 :  latin
+uni00F8 :  latin
+uni00F9 :  latin
+uni00FA :  latin
+uni00FB :  latin
+uni00FC :  latin
+uni00FD :  latin
+uni00FE :  latin
+uni00FF :  latin
+uni0131 :  latin
+uni0152 :  latin
+uni0153 :  latin
+north : north up, triangle
+uni02DA :  latin
+uni02DC :  latin
+pi : pi math
+uni2013 :  latin
+uni2014 :  latin
+uni2018 :  latin
+uni2019 :  latin
+uni201A :  latin
+uni201C :  latin
+uni201D :  latin
+uni201E :  latin
+uni2022 :  latin
+ellipsis : ellipsis latin
+left : left chevron
+right : right chevron
+uni2044 :  latin
+uni2074 :  latin
+uni20AC :  currency
+tel : tel sign
+uni2212 :  latin, sign
+uni2215 :  latin
+infinity : infinity math
+house : house building, parent
+bell : bell bell
+uni2408 :  delete
+circle : circle geometry
+yinyang : yinyang sign
+sun : sun weather
+female : female gender
+male : male gender
+heart : heart heart, child
+_2g : 2g band
+_3g : 3g band
+_4chan : 4chan logo
+_4g : 4g band
+_4k : 4k quality
+_5g : 5g band
+_8k : 8k quality
+abacus : abacus tool
+acorn : acorn tree
+ad : ad sign
+add : add sign, child
+address : address book
+aflat : aflat tire, car
+africa : africa globe
+airbag : airbag car
+airconditioner : airconditioner furniture
+aircraft : aircraft transport
+airhorn : airhorn alert
+airplay : airplay media
+airport : airport transport, navigation, aircraft
+alarm : alarm phone, parent
+album : album media, parent
+albums : albums media, group, parent
+alert : alert sign, child
+alien : alien face
+aliexpress : aliexpress logo
+alipay : alipay logo
+amazon : amazon logo
+ambulance : ambulance transport
+america : america globe
+americanfootball : americanfootball sport
+ammo : ammo weapon, ammunition
+amp : amp amplifier, music, guitar
+amp : amp instrument
+anaglyph : anaglyph glasses
+anchor : anchor boat
+and : and operator
+android : android logo
+angle : angle geometry
+angry : angry sign
+angular : angular lang, logo
+antenna : antenna dish, device
+anvil : anvil tool, metal
+apart : apart arrow
+app : app menu
+apple : apple logo
+application : application gui, window
+archery : archery sport
+archive : archive file
+archlinux : archlinux distrib, linux
+armchair : armchair furniture
+asc : asc sort
+asia : asia globe
+atm : atm navigation
+atom : atom nature
+attachment : attachment mail
+australia : australia globe
+awd : awd transport
+axe : axe tool
+baby : baby person
+babyroom : babyroom navigation
+back : back arrow
+backlight : backlight keyboard
+backpack : backpack bag
+badge : badge child
+badminton : badminton sport
+baguette : baguette food
+balance : balance scale, tool
+ball : ball tenis, sport
+ballot : ballot ballot
+bandaid : bandaid medical
+bank : bank building
+barcode : barcode scan
+barrel : barrel container
+bars : bars chart
+basket : basket shopping
+bat : bat nature, animal
+bath : bath furniture
+bathroom : bathroom toilets, navigation
+battery : battery battery
+battery0 : battery0 battery
+battery1 : battery1 battery
+battery2 : battery2 battery
+battery3 : battery3 battery
+battery4 : battery4 battery
+battery5 : battery5 battery
+battleaxe : battleaxe weapon
+beach : beach nature
+bean : bean food
+bed : bed furniture
+bedbunk : bedbunk furniture
+bee : bee animal
+beer : beer glass, pint
+belt : belt aircraft
+bike : bike transport
+bill : bill currency
+binocular : binocular glasses
+bird : bird animal
+birthday : birthday food
+bitcoin : bitcoin currency
+blame : blame git
+bluetooth : bluetooth logo, device
+board : board layout
+boat : boat transport
+bold : bold text
+bolt : bolt tool
+bone : bone nature
+book : book book
+bookmark : bookmark book
+boomerang : boomerang tool, game
+boot : boot cloth
+bottle : bottle food
+bowling : bowling sport
+boxer : boxer cloth
+boxes : boxes container
+boy : boy face
+bra : bra cloth
+branch : branch git
+break : break car
+bridge : bridge navigation
+briefcase : briefcase work
+brightness : brightness image
+broadcast : broadcast network
+broom : broom clean, clear, furniture
+brush : brush paint
+bucket : bucket container
+bug : bug animal
+bull : bull animal
+bulldozer : bulldozer construction, transport, engine
+burger : burger food
+burn : burn light
+bus : bus transport
+business : business person
+bust : bust person
+butterfly : butterfly nature
+cablecar : cablecar transport
+cactus : cactus tree
+cake : cake food
+calc : calc device
+calendar : calendar parent
+call : call parent
+camcorder : camcorder device
+camera : camera device
+cameraroll : cameraroll camera, film
+camping : camping navigation
+campingcar : campingcar transport
+candle : candle light
+candy : candy food
+car : car transport
+carousel : carousel layout
+carrot : carrot food
+cart : cart shopping
+cashier : cashier sale
+cassette : cassette media
+cast : cast device
+cat : cat face
+cctv : cctv device
+cctv : cctv surveillance
+celcius : celcius degree, weather
+center : center text
+certified : certified security
+chain : chain link
+chalk : chalk board
+champagne : champagne glass
+charge : charge car
+charger : charger navigation
+charging : charging battery
+chart : chart chart
+chat : chat message
+chatbot : chatbot message
+check : check sign
+checked : checked ballot
+checklist : checklist layout
+checkout : checkout git
+cheese : cheese food
+chef : chef hat
+chess : chess game
+chick : chick animal
+chili : chili sauce, nature, hot
+chip : chip card
+chrome : chrome browser
+church : church building
+cli : cli interface
+climb : climb stairs
+clipboard : clipboard copy
+clock : clock clock
+cloud : cloud weather
+clover : clover nature
+cocktail : cocktail glass
+code : code child
+coffee : coffee cup
+cog : cog tool
+collumn : collumn layout
+colors : colors picker
+commit : commit git
+compass : compass architecture, tool
+cone : cone navigation
+config : config child, settings
+connected : connected plug
+construction : construction hat
+container : container docker
+contrast : contrast image
+cookie : cookie food
+couch : couch furniture
+coupon : coupon card
+cow : cow animal
+cowboy : cowboy hat
+cpp : cpp lang
+cpu : cpu device, chip
+crate : crate box
+credit : credit card
+croissant : croissant food
+crop : crop image
+crossed : crossed ballot
+crown : crown hat
+crystalball : crystalball magic
+cs : cs lang
+css : css lang
+cube : cube geometric
+curling : curling sport
+cursor : cursor arrow
+curve : curve connect
+cut : cut tool
+dashed : dashed ballot
+database : database child
+debian : debian logo
+desc : desc sort
+descent : descent stairs
+desktop : desktop furniture
+devices : devices device
+dice : dice game
+dice1 : dice1 game
+dice2 : dice2 game
+dice3 : dice3 game
+dice4 : dice4 game
+dice5 : dice5 game
+dice6 : dice6 game
+diff : diff lang
+digging : digging person
+direction : direction navigation
+disc : disc media
+disconnected : disconnected plug
+docker : docker logo
+dog : dog animal
+dolly : dolly tool
+door : door building
+dot : dot chart
+down : down chevron
+downdouble : downdouble down, chevron
+download : download down, arrow
+downmost : downmost down, chevron
+downright : downright arrow
+downward : downward down, arrow
+dress : dress cloth
+drink : drink food
+drive : drive media
+droplet : droplet nature
+drums : drums instrument
+dry : dry weather
+duck : duck animal
+east : east right, triangle
+eatin : eatin order
+eject : eject media
+elbow : elbow connect
+electricbass : electricbass instrument
+electricguitar : electricguitar instrument
+elevator : elevator navigation, building
+engine : engine car
+enlarge : enlarge size
+enter : enter door
+envelope : envelope mail
+eraser : eraser stationery
+escalator : escalator building, navigation
+ethereum : ethereum currency
+europe : europe globe
+even : even balance
+exit : exit sign, building, navigation
+external : external arrow
+eye : eye body
+facebook : facebook logo
+factory : factory building
+false : false radio
+fan : fan furniture
+fandom : fandom logo
+fareneight : fareneight degree, weather
+fastforward : fastforward track, arrow
+fastrewind : fastrewind track, arrow
+faucet : faucet navigation, water
+feather : feather nature
+featherpen : featherpen pen, feather, edit
+feeder : feeder glass
+fence : fence wall
+file : file parent
+files : files file, group
+filler : filler paint
+film : film movie, cinema
+filter : filter child, gui
+fingerprint : fingerprint security
+firefox : firefox browser
+fish : fish animal
+fist : fist hand
+fitness : fitness sport
+fix : fix tool
+flag : flag navigation
+flame : flame fire
+flask : flask glass
+flight : flight aircraft
+flood : flood weather
+floppy : floppy media
+flush : flush clear, notification
+folder : folder folder, parent
+folder2 : folder2 folder, parent
+folders : folders folder, group, parent
+football : football sport
+forbidden : forbidden sign
+forest : forest tree
+fort : fort building
+forum : forum message, groups
+forward : forward arrow
+fox : fox animal, face
+fragile : fragile glass
+fridge : fridge appliance
+frosty : frosty face
+fuel : fuel navigation
+fullscreen : fullscreen gui, windowed
+function : function math
+gamepad : gamepad device
+gamesave : gamesave card
+gas : gas navigation
+gdrive : gdrive logo
+genie : genie lamp, person
+gentleman : gentleman person
+geometric : geometric tools
+ghost : ghost person
+gif : gif file
+girl : girl face
+git : git logo
+github : github logo
+gitlab : gitlab logo
+glass : glass container
+golf : golf sport
+golfer : golfer sport
+gondola : gondola transport
+google : google logo
+gps : gps navigation
+graph : graph chart
+grocery : grocery bag
+group : group person
+gsm0 : gsm0 signal, parent
+gsm1 : gsm1 signal, parent
+gsm2 : gsm2 signal, parent
+gsm3 : gsm3 signal, parent
+gsm4 : gsm4 signal, parent
+gui : gui interface
+guitar : guitar instrument
+gun : gun weapon
+gyrophare : gyrophare 
+hammer : hammer tool
+handbag : handbag bag
+handle : handle gui
+handle2 : handle2 gui
+happy : happy face
+haskell : haskell lang
+hd : hd quality
+head : head body
+header : header layout
+headphone : headphone device
+headset : headset device
+heartbroken : heartbroken heart
+heavier : heavier balance
+height : height arrow
+helicopter : helicopter transport
+hibernate : hibernate power, sign
+hierarchy : hierarchy layout
+highlight : highlight text
+highlighter : highlighter marker
+hiking : hiking person, transport
+hockey : hockey sport
+horn : horn bike
+horse : horse transport, animal
+hospital : hospital building
+hotel : hotel navigation
+hourglass0 : hourglass0 spinner
+hourglass1 : hourglass1 spinner
+hourglass2 : hourglass2 spinner
+hourglass3 : hourglass3 spinner
+hourglass4 : hourglass4 spinner
+hourglass5 : hourglass5 spinner
+hourglass6 : hourglass6 spinner
+hourglass7 : hourglass7 spinner
+hourglass8 : hourglass8 spinner
+html : html lang
+icecream : icecream food
+icicles : icicles nature
+inbox : inbox mail
+incognito : incognito face
+indent : indent text
+info : info sign
+instagram : instagram logo
+ipphone : ipphone device
+italic : italic text
+jackhammer : jackhammer tool
+java : java lang
+jean : jean cloth
+jerrican : jerrican container
+jewelry : jewelry ring, wedding
+join : join arrow
+js : js lang
+json : json lang
+jujutsu : jujutsu sport
+jump : jump person
+justify : justify text
+kaaba : kaaba navigation
+kart : kart transport
+key : key security
+keyboard : keyboard device
+kitten : kitten cat, face
+kotlin : kotlin lang
+lab : lab glass
+label : label book
+ladder : ladder building
+lady : lady person
+lamp : lamp furniture
+landing : landing aircraft
+landscape : landscape nature, mountain
+latex : latex lang
+laudry : laudry appliance
+leaf : leaf tree
+leftdouble : leftdouble left, chevron
+leftmost : leftmost left, chevron
+leftward : leftward left, arrow
+lego : lego face
+letter : letter mail
+lifter : lifter transport
+ligature : ligature sign
+lightbulb : lightbulb furniture
+lighter : lighter flame
+linkedin : linkedin logo
+linux : linux logo
+list : list layout
+list2 : list2 layout
+localisation : localisation gps, navigation
+lock : lock security
+log : log git
+login : login signin, sign, authenticate, security
+logout : logout signout, sign, authenticate, security
+loop : loop arrow
+louder : louder volume
+ltr : ltr text
+lua : lua lang
+luggage : luggage navigation
+magic : magic hat
+magnet : magnet format, tool
+magnifier : magnifier tool
+mail : mail mail
+maki : maki food
+man : man face
+map : map navigation
+markdown : markdown lang
+marker : marker navigation
+matrix : matrix logo
+medical : medical briefcase
+medication : medication medical
+meditation : meditation person
+medium : medium logo
+megaphone : megaphone tool, announcement
+menu : menu gui
+merge : merge git
+message : message chat
+messenger : messenger logo
+metronome : metronome music, instrument, tool
+microphone : microphone device
+microscope : microscope tool
+microwave : microwave furniture
+milk : milk bottle, food
+monitor : monitor gauge
+moon : moon nature
+mouse : mouse device
+move : move arrow
+movie : movie film
+mr : mr git
+msoffice : msoffice logo
+muaythai : muaythai sport
+muffin : muffin food
+mug : mug cup
+mushroom : mushroom food
+music : music note, child
+mute : mute volume
+na : na sign
+nas : nas media
+navigation : navigation compass, tool
+netflix : netflix logo
+network : network device
+newspaper : newspaper journal
+next : next track, arrow
+nfc : nfc logo
+ninja : ninja person, warrior
+noentry : noentry sign
+not : not parent
+notes : notes music
+nswitch : nswitch device
+numbered : numbered layout
+oak : oak tree
+octopus : octopus animal
+off : off toggle
+office : office building
+oil : oil car
+oillamp : oillamp lamp
+ok : ok hand
+on : on toggle
+options : options gui
+or : or operator
+outbox : outbox mail
+oven : oven furniture
+package : package container
+pagebreak : pagebreak text
+paintbrush : paintbrush paint, brush
+palette : palette paint
+panorama : panorama image
+panty : panty cloth
+pause : pause track
+pawn : pawn animal
+paycheck : paycheck work
+paypal : paypal logo
+pc : pc device
+pen : pen marker, edit
+perl : perl lang, nature, animal, camel
+phone : phone device
+php : php lang
+piano : piano instrument
+picker : picker paint
+picture : picture image
+pictures : pictures image, group
+pie : pie chart
+pig : pig animal
+piggy : piggy currency
+pill : pill medic
+pills : pills glass
+pin : pin stationary
+pine : pine tree
+piston : piston engine
+pizza : pizza food
+play : play track, arrow
+playlist : playlist track, group
+playstation : playstation device, logo
+playstore : playstore logo
+plugin : plugin child
+plunger : plunger furniture
+plus1 : plus1 sign
+podium : podium ranking
+pokeball : pokeball 
+post : post navigation
+power : power sign
+pray : pray person
+presentation : presentation office, parent
+pressure : pressure car
+previous : previous track, arrow
+printer : printer device
+profile : profile user
+proposal : proposal person
+protect : protect hand
+psp : psp device, console
+puppy : puppy face
+pyramid : pyramid geometric
+python : python lang
+qrcode : qrcode scan, code
+quadcopter : quadcopter device
+quiet : quiet volume
+rabbit : rabbit animal, rabbit
+radio : radio device
+radioactif : radioactif sign
+rain : rain weather
+rainbow : rainbow nature
+ram : ram device
+rat : rat animal
+razor : razor tool
+read : read book
+receive : receive hand
+recycle : recycle arrow, loop
+reddit : reddit logo
+redhat : redhat logo
+refresh : refresh arrow, loop
+reload : reload arrow, loop
+repeat : repeat track, arrow, loop
+repeat1 : repeat1 track, arrow, loop
+revert : revert arrow, loop
+revolver : revolver weapon
+rewind : rewind track, arrow
+rfid : rfid device, chip
+rice : rice food
+rightdouble : rightdouble right, chevron
+rightmost : rightmost right, chevron
+rightward : rightward right, arrow
+rise : rise arrow
+rj : rj cable, ethernet
+road : road highway
+roadwork : roadwork sign
+robot : robot face
+rocket : rocket transport
+roll : roll navigation, toilet
+roller : roller paint
+rollerblade : rollerblade transport
+rostrum : rostrum presentation
+router : router device
+rss : rss format
+rtl : rtl text
+ruby : ruby lang
+rugby : rugby sport
+run : run person
+sad : sad face
+safe : safe 
+satellite : satellite device
+saw : saw tool
+sax : sax instrument
+scale : scale jauge
+scan : scan scan
+scanner : scanner device
+scooter : scooter transport
+screen : screen device
+screw : screw tool
+script : script file
+sd : sd quality
+sdcard : sdcard media
+seat : seat aircraft
+seatbelt : seatbelt car
+selectbox : selectbox gui
+send : send arrow
+server : server device
+serving : serving food
+sewing : sewing machine
+shake : shake hand
+shark : shark animal
+shaver : shaver razor
+shield : shield security
+ship : ship transport
+shoe : shoe cloth
+shop : shop building
+shopping : shopping bag
+shovel : shovel dig
+shower : shower navigation
+shrimp : shrimp animal, food
+shrine : shrine building
+shrink : shrink size
+shuffle : shuffle track, arrow
+shutter : shutter image
+sidelist : sidelist layout
+sidenav : sidenav layout
+silverware : silverware food
+sim : sim card, telephone
+sink : sink furniture
+size : size text
+skate : skate sport
+ski : ski sport
+skull : skull face
+smartwatch : smartwatch device
+smooking : smooking size
+snooker : snooker sport
+snowboard : snowboard sport
+sofa : sofa furniture
+soup : soup food, noodle
+south : south down, triangle
+speaker : speaker device
+spellcheck : spellcheck text
+sphere : sphere geometric
+spinner : spinner animation, loading
+spinner2 : spinner2 animation, loading
+split : split arrow
+spray : spray paint
+stack : stack layout
+stacked : stacked layout
+stackoverflow : stackoverflow logo
+stamp : stamp stationary
+star : star rate
+steadycam : steadycam device
+steam : steam logo
+stop : stop track
+straighten : straighten image
+stroller : stroller transport
+student : student hat
+stylo : stylo marker, edit
+sublimtext : sublimtext logo, editor
+subtitle : subtitle video
+sunglasses : sunglasses glasses
+sunrise : sunrise weather
+sunset : sunset weather
+swift : swift lang
+swim : swim sport
+switch : switch arrow
+sword : sword game, weapon
+tab : tab gui
+tabletennis : tabletennis sport, pingpong
+taekwondo : taekwondo sport
+tag : tag git
+takeoff : takeoff aircraft
+takeout : takeout order, food
+taxi : taxi transport
+tea : tea cup
+telescope : telescope glasses
+temperature : temperature car
+tennis : tennis sport
+test : test debug
+tetris : tetris game
+thermometer : thermometer tool
+throw : throw person
+thumbdown : thumbdown hand
+thumbup : thumbup hand
+thunderbolt : thunderbolt nature
+thundercloud : thundercloud weather
+ticket : ticket card
+tie : tie cloth
+tile : tile layout
+timer : timer clock
+tm : tm sign
+toast : toast food
+todo : todo ballot
+toilet : toilet navigation, bathroom
+toolbox : toolbox briefcase
+torch : torch tool
+tornado : tornado weather
+touch : touch hand
+traffic : traffic navigation
+train : train transport
+tram : tram transport
+translate : translate lang
+transport : transport card
+trash : trash delete, remove, bin
+tree : tree layout
+trolley : trolley shopping
+trophy : trophy event, sport
+truck : truck transport
+true : true radio
+tshirt : tshirt cloth
+tty : tty device
+tube : tube glass
+tuning : tuning instrument
+turtle : turtle animal, slow
+tv : tv device
+twitch : twitch logo
+twitter : twitter logo
+ufo : ufo transport
+umbrella : umbrella weather
+underground : underground transport
+underline : underline text
+unicorn : unicorn animal
+unindent : unindent text
+unlock : unlock security
+up : up chevron
+update : update 
+updouble : updouble up, chevron
+updown : updown up, down, arrow
+upload : upload up, arrow
+upmost : upmost up, chevron
+upright : upright arrow
+upward : upward up, arrow
+usb : usb device, flash, media
+vest : vest cloth
+vi : vi logo, editor
+viking : viking hat
+virus : virus nature
+vk : vk logo
+volley : volley sport
+volume : volume volume
+vote : vote mail
+vr : vr glasses
+vscode : vscode editor, logo
+vue : vue logo
+walk : walk transport, person
+wall : wall layout, building
+wallet : wallet 
+warning : warning sign
+wasp : wasp animal
+water : water weather, nature
+wave : wave nature
+weight : weight tool
+west : west left, triangle
+whale : whale animal
+whatsapp : whatsapp logo
+wheelchair : wheelchair person
+whistle : whistle tool
+width : width arrow
+wifi0 : wifi0 signal
+wifi1 : wifi1 signal
+wifi2 : wifi2 signal
+wifi3 : wifi3 signal
+wifi4 : wifi4 signal
+wikipedia : wikipedia logo
+wind : wind weather
+window : window furniture
+windowed : windowed fullscreen#gui
+windows : windows logo
+windsocket : windsocket weather
+woman : woman face
+workstation : workstation device
+wrench : wrench tool
+xbox : xbox device
+xor : xor operator
+yahoo : yahoo logo
+youtube : youtube logo
+zip : zip file
